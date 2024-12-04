@@ -56,6 +56,49 @@ type RegisterResponseBody struct {
 	Status  bool   `json:"status"`
 }
 
+type GetUserRequestBody struct {
+	User string `json:"user"`
+	Role int    `json:"role"`
+}
+
+type GetUserResponseBody struct {
+	Status            bool      `json:"status"`
+	Message           string    `json:"message"`
+	User              string    `json:"userid"`
+	Role              int       `json:"role"`
+	Nama              string    `json:"name"`
+	JenisKelamin      string    `json:"sex"`
+	NoHP              string    `json:"number"`
+	Pwd               string    `json:"password"`
+	TglLahir          time.Time `json:"date"`
+	Alamat            string    `json:"address"`
+	SaldoMyPay        float64   `json:"saldo"`
+	Level             string    `json:"level"`
+	NamaBank          string    `json:"bank"`
+	NomorRekening     string    `json:"noRek"`
+	NPWP              string    `json:"npwp"`
+	LinkFoto          string    `json:"link"`
+	Rating            float64   `json:"rating"`
+	JmlPsnananSelesai int       `json:"amount"`
+}
+
+type UpdateUserRequestBody struct {
+	User              string    `json:"user"`
+	Role              int       `json:"role"`
+	Nama              string    `json:"name"`
+	JenisKelamin      string    `json:"sex"`
+	NoHP              string    `json:"number"`
+	Pwd               string    `json:"password"`
+	TglLahir          time.Time `json:"date"`
+	Alamat            string    `json:"address"`
+	NamaBank          string    `json:"bank"`
+	NomorRekening     string    `json:"noRek"`
+	NPWP              string    `json:"npwp"`
+	LinkFoto          string    `json:"link"`
+	Rating            float64   `json:"rating"`
+	JmlPsnananSelesai int       `json:"amount"`
+}
+
 func main() {
 	pgConnStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
 
@@ -75,6 +118,7 @@ func main() {
 	// tambah endpoint disini
 	http.HandleFunc("/login", corsMiddleware(checkLogin))
 	http.HandleFunc("/register", corsMiddleware(register))
+	http.HandleFunc("/getUser", corsMiddleware(getUser))
 
 	fmt.Println("Server is listening on port 8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
@@ -84,7 +128,7 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers
 		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
@@ -242,53 +286,61 @@ func checkLogin(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// func addUser(w http.ResponseWriter, r *http.Request) {
-//     var user User
-//     err := json.NewDecoder(r.Body).Decode(&user)
-//     if err != nil {
-//         http.Error(w, err.Error(), http.StatusBadRequest)
-//         return
-//     }
+func getUser(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
 
-//     _, err = db.Exec("INSERT INTO users (name, email) VALUES ($1, $2)", user.Name, user.Email)
-//     if err != nil {
-//         http.Error(w, err.Error(), http.StatusInternalServerError)
-//         return
-//     }
+	var body GetUserRequestBody
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
 
-//     w.WriteHeader(http.StatusCreated)
-//     fmt.Fprintf(w, "User added successfully")
-// }
+	var response GetUserResponseBody
+	err = db.QueryRow(`SELECT Nama, JenisKelamin, NoHP, Pwd, TglLahir, Alamat, SaldoMyPay FROM "user" WHERE Id = $1`, body.User).Scan(
+		&response.Nama,
+		&response.JenisKelamin,
+		&response.NoHP,
+		&response.Pwd,
+		&response.TglLahir,
+		&response.Alamat,
+		&response.SaldoMyPay)
 
-// func updateUser(w http.ResponseWriter, r *http.Request) {
-//     var user User
-//     err := json.NewDecoder(r.Body).Decode(&user)
-//     if err != nil {
-//         http.Error(w, err.Error(), http.StatusBadRequest)
-//         return
-//     }
+	if err == sql.ErrNoRows {
+		response := &GetUserResponseBody{
+			Status:  false,
+			Message: "Invalid Credential",
+		}
 
-//     _, err = db.Exec("UPDATE users SET name=$1, email=$2 WHERE id=$3", user.Name, user.Email, user.ID)
-//     if err != nil {
-//         http.Error(w, err.Error(), http.StatusInternalServerError)
-//         return
-//     }
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := &GetUserResponseBody{
+			Status:  false,
+			Message: err.Error(),
+		}
 
-//     fmt.Fprintf(w, "User updated successfully")
-// }
+		json.NewEncoder(w).Encode(response)
+		return
+	}
 
-// func deleteUser(w http.ResponseWriter, r *http.Request) {
-//     id := r.URL.Query().Get("id")
-//     if id == "" {
-//         http.Error(w, "ID parameter is required", http.StatusBadRequest)
-//         return
-//     }
+	response.Status = true
+	response.Message = "Berhasil mendapatkan data"
 
-//     _, err := db.Exec("DELETE FROM users WHERE id=$1", id)
-//     if err != nil {
-//         http.Error(w, err.Error(), http.StatusInternalServerError)
-//         return
-//     }
-
-//     fmt.Fprintf(w, "User deleted successfully")
-// }
+	if body.Role == 0 {
+		db.QueryRow(`SELECT Level FROM PELANGGAN WHERE Id = $1`, body.User).Scan(&response.Level)
+		json.NewEncoder(w).Encode(response)
+	} else {
+		db.QueryRow(`SELECT NamaBank, NomorRekening, NPWP, LinkFoto, Rating, JmlPsnananSelesai FROM PEKERJA WHERE Id = $1`, body.User).Scan(
+			&response.NamaBank,
+			&response.NomorRekening,
+			&response.NPWP,
+			&response.LinkFoto,
+			&response.Rating,
+			&response.JmlPsnananSelesai)
+		json.NewEncoder(w).Encode(response)
+	}
+}
