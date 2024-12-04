@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 )
 
@@ -33,6 +35,27 @@ type LoginResponseBody struct {
 	Name    string `json:"name"`
 }
 
+type RegisterRequestBody struct {
+	Role              int       `json:"role"`
+	Nama              string    `json:"name"`
+	JenisKelamin      string    `json:"sex"`
+	NoHP              string    `json:"number"`
+	Pwd               string    `json:"password"`
+	TglLahir          time.Time `json:"date"`
+	Alamat            string    `json:"address"`
+	NamaBank          string    `json:"bank"`
+	NomorRekening     string    `json:"noRek"`
+	NPWP              string    `json:"npwp"`
+	LinkFoto          string    `json:"link"`
+	Rating            float64   `json:"rating"`
+	JmlPsnananSelesai int       `json:"amount"`
+}
+
+type RegisterResponseBody struct {
+	Message string `json:"message"`
+	Status  bool   `json:"status"`
+}
+
 func main() {
 	pgConnStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
 
@@ -51,6 +74,7 @@ func main() {
 
 	// tambah endpoint disini
 	http.HandleFunc("/login", corsMiddleware(checkLogin))
+	http.HandleFunc("/register", corsMiddleware(register))
 
 	fmt.Println("Server is listening on port 8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
@@ -73,6 +97,95 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		// Call the next handler
 		next.ServeHTTP(w, r)
 	}
+}
+
+func register(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var body RegisterRequestBody
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	var userId string
+	err = db.QueryRow(`INSERT INTO "user" VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING Id`, uuid.New(), body.Nama, body.JenisKelamin, body.NoHP, body.Pwd, body.TglLahir, body.Alamat, 0.0).Scan(&userId)
+	if err == sql.ErrNoRows {
+		response := &RegisterResponseBody{
+			Status:  false,
+			Message: "Invalid Credential on user",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := &RegisterResponseBody{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	if body.Role == 0 {
+		err = db.QueryRow(`INSERT INTO PELANGGAN VALUES ($1, $2) RETURNING Id`, userId, "Basic").Scan(&userId)
+		if err == sql.ErrNoRows {
+			response := &RegisterResponseBody{
+				Status:  false,
+				Message: "Invalid Credential on pelanggan",
+			}
+
+			json.NewEncoder(w).Encode(response)
+			return
+		} else if err != nil {
+			response := &RegisterResponseBody{
+				Status:  false,
+				Message: err.Error(),
+			}
+
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+	} else {
+		err = db.QueryRow(`INSERT INTO PEKERJA VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING Id`,
+			userId,
+			body.NamaBank,
+			body.NomorRekening,
+			body.NPWP,
+			body.LinkFoto,
+			body.Rating,
+			body.JmlPsnananSelesai).Scan(&userId)
+
+		if err == sql.ErrNoRows {
+			response := &RegisterResponseBody{
+				Status:  false,
+				Message: "Invalid Credential on pekerja",
+			}
+
+			json.NewEncoder(w).Encode(response)
+			return
+		} else if err != nil {
+			response := &RegisterResponseBody{
+				Status:  false,
+				Message: err.Error(),
+			}
+
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+	}
+
+	response := &RegisterResponseBody{
+		Status:  true,
+		Message: "User berhasil dibuat",
+	}
+
+	json.NewEncoder(w).Encode(response)
 }
 
 func checkLogin(w http.ResponseWriter, r *http.Request) {
