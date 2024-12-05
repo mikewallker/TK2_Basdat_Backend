@@ -275,64 +275,6 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if body.Role == 1 {
-		err = db.QueryRow(`SELECT NamaBank, NomorRekening, NPWP, LinkFoto FROM PEKERJA WHERE Id = $1`, body.User).
-			Scan(
-				&oldValue.NamaBank,
-				&oldValue.NomorRekening,
-				&oldValue.NPWP,
-				&oldValue.LinkFoto)
-
-		if err == sql.ErrNoRows {
-			response := &UpdateUserResponseBody{
-				Status:  false,
-				Message: "Invalid Credential on pekerja",
-			}
-
-			json.NewEncoder(w).Encode(response)
-			return
-		} else if err != nil {
-			response := &UpdateUserResponseBody{
-				Status:  false,
-				Message: err.Error(),
-			}
-
-			json.NewEncoder(w).Encode(response)
-			return
-		}
-	}
-
-	if body.Nama != "" {
-		oldValue.Nama = body.Nama
-	}
-
-	if body.JenisKelamin != "" {
-		oldValue.JenisKelamin = body.JenisKelamin
-	}
-
-	if !body.TglLahir.IsZero() {
-		oldValue.TglLahir = body.TglLahir
-	}
-
-	if body.Alamat != "" {
-		oldValue.Alamat = body.Alamat
-	}
-
-	if body.NamaBank != "" {
-		oldValue.NamaBank = body.NamaBank
-	}
-	if body.NomorRekening != "" {
-		oldValue.NomorRekening = body.NomorRekening
-	}
-
-	if body.NPWP != "" {
-		oldValue.NPWP = body.NPWP
-	}
-
-	if body.LinkFoto != "" {
-		oldValue.LinkFoto = body.LinkFoto
-	}
-
 	var current_user_id string
 	err = db.QueryRow(`UPDATE "user" SET Nama = $1, JenisKelamin = $2, TglLahir = $3, Alamat = $4 WHERE Id = $5 Returning Id`,
 		oldValue.Nama,
@@ -341,7 +283,7 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		oldValue.Alamat,
 		body.User).Scan(&current_user_id)
 
-	if body.NoHP != "" {
+	if body.NoHP != oldValue.NoHP {
 		err = db.QueryRow(`UPDATE "user" SET NoHP = $1 WHERE Id = $2 Returning Id`,
 			body.NoHP,
 			body.User).Scan(&current_user_id)
@@ -366,14 +308,34 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if body.Role == 1 {
+		err = db.QueryRow(`SELECT NPWP, LinkFoto, NamaBank, NomorRekening FROM PEKERJA WHERE Id = $1`, body.User).
+			Scan(
+				&oldValue.NPWP,
+				&oldValue.LinkFoto,
+				&oldValue.NamaBank,
+				&oldValue.NomorRekening)
+		if err == sql.ErrNoRows {
+			response := &UpdateUserResponseBody{
+				Status:  false,
+				Message: "Invalid Credential on pekerja",
+			}
+
+			json.NewEncoder(w).Encode(response)
+			return
+		} else if err != nil {
+			response := &UpdateUserResponseBody{
+				Status:  false,
+				Message: err.Error() + " Update",
+			}
+
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
 		err = db.QueryRow(`UPDATE PEKERJA SET 
-        NamaBank = $1, 
-        NomorRekening = $2, 
-        NPWP = $3, 
-        LinkFoto = $4 
-        WHERE Id = $5 Returning Id`,
-			oldValue.NamaBank,
-			oldValue.NomorRekening,
+        NPWP = $1, 
+        LinkFoto = $2 
+        WHERE Id = $3 Returning Id`,
 			oldValue.NPWP,
 			oldValue.LinkFoto,
 			body.User).Scan(&current_user_id)
@@ -394,6 +356,83 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 			json.NewEncoder(w).Encode(response)
 			return
 		}
+
+		if body.NomorRekening != oldValue.NomorRekening && body.NamaBank != oldValue.NamaBank {
+			fmt.Println(body.NomorRekening + " " + body.NamaBank + " " + oldValue.NomorRekening + " " + oldValue.NamaBank)
+			err = db.QueryRow(`UPDATE PEKERJA SET 
+			NamaBank = $1, 
+			NomorRekening = $2 
+			WHERE Id = $3 Returning Id`,
+				body.NamaBank,
+				body.NomorRekening,
+				body.User).Scan(&current_user_id)
+			if err == sql.ErrNoRows {
+				response := &UpdateUserResponseBody{
+					Status:  false,
+					Message: "Invalid Credential on pekerja",
+				}
+
+				json.NewEncoder(w).Encode(response)
+				return
+			} else if err != nil {
+				response := &UpdateUserResponseBody{
+					Status:  false,
+					Message: err.Error() + " Update",
+				}
+
+				json.NewEncoder(w).Encode(response)
+				return
+			}
+		} else if body.NamaBank != oldValue.NamaBank {
+			fmt.Println("Masuk-[0]")
+			err = db.QueryRow(`UPDATE PEKERJA SET 
+			NamaBank = $1
+			WHERE Id = $2 Returning Id`,
+				body.NamaBank,
+				body.User).Scan(&current_user_id)
+			if err == sql.ErrNoRows {
+				response := &UpdateUserResponseBody{
+					Status:  false,
+					Message: "Invalid Credential on pekerja",
+				}
+
+				json.NewEncoder(w).Encode(response)
+				return
+			} else if err != nil {
+				response := &UpdateUserResponseBody{
+					Status:  false,
+					Message: err.Error() + " Bank Name",
+				}
+
+				json.NewEncoder(w).Encode(response)
+				return
+			}
+		} else if body.NomorRekening != oldValue.NomorRekening {
+			fmt.Println("Masuk")
+			err = db.QueryRow(`UPDATE PEKERJA SET 
+			NomorRekening = $1
+			WHERE Id = $2 Returning Id`,
+				body.NomorRekening,
+				body.User).Scan(&current_user_id)
+			if err == sql.ErrNoRows {
+				response := &UpdateUserResponseBody{
+					Status:  false,
+					Message: "Invalid Credential on pekerja",
+				}
+
+				json.NewEncoder(w).Encode(response)
+				return
+			} else if err != nil {
+				response := &UpdateUserResponseBody{
+					Status:  false,
+					Message: err.Error() + " Rekening",
+				}
+
+				json.NewEncoder(w).Encode(response)
+				return
+			}
+		}
+
 	}
 
 	response := &RegisterResponseBody{
