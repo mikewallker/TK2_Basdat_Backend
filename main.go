@@ -83,20 +83,22 @@ type GetUserResponseBody struct {
 }
 
 type UpdateUserRequestBody struct {
-	User              string    `json:"user"`
-	Role              int       `json:"role"`
-	Nama              string    `json:"name"`
-	JenisKelamin      string    `json:"sex"`
-	NoHP              string    `json:"number"`
-	Pwd               string    `json:"password"`
-	TglLahir          time.Time `json:"date"`
-	Alamat            string    `json:"address"`
-	NamaBank          string    `json:"bank"`
-	NomorRekening     string    `json:"noRek"`
-	NPWP              string    `json:"npwp"`
-	LinkFoto          string    `json:"link"`
-	Rating            float64   `json:"rating"`
-	JmlPsnananSelesai int       `json:"amount"`
+	User          string    `json:"user"`
+	Role          int       `json:"role"`
+	Nama          string    `json:"name"`
+	JenisKelamin  string    `json:"sex"`
+	NoHP          string    `json:"number"`
+	TglLahir      time.Time `json:"date"`
+	Alamat        string    `json:"address"`
+	NamaBank      string    `json:"bank"`
+	NomorRekening string    `json:"noRek"`
+	NPWP          string    `json:"npwp"`
+	LinkFoto      string    `json:"link"`
+}
+
+type UpdateUserResponseBody struct {
+	Message string `json:"message"`
+	Status  bool   `json:"status"`
 }
 
 func main() {
@@ -119,6 +121,7 @@ func main() {
 	http.HandleFunc("/login", corsMiddleware(checkLogin))
 	http.HandleFunc("/register", corsMiddleware(register))
 	http.HandleFunc("/getUser", corsMiddleware(getUser))
+	http.HandleFunc("/updateUser", corsMiddleware(updateUser))
 
 	fmt.Println("Server is listening on port 8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
@@ -227,6 +230,175 @@ func register(w http.ResponseWriter, r *http.Request) {
 	response := &RegisterResponseBody{
 		Status:  true,
 		Message: "User berhasil dibuat",
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+func updateUser(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var body UpdateUserRequestBody
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	var oldValue UpdateUserRequestBody
+	err = db.QueryRow(`SELECT Nama, JenisKelamin, NoHP, TglLahir, Alamat FROM "user" WHERE Id = $1`, body.User).
+		Scan(
+			&oldValue.Nama,
+			&oldValue.JenisKelamin,
+			&oldValue.NoHP,
+			&oldValue.TglLahir,
+			&oldValue.Alamat)
+
+	if err == sql.ErrNoRows {
+		response := &UpdateUserResponseBody{
+			Status:  false,
+			Message: "Invalid Credential on user",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := &UpdateUserResponseBody{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	if body.Role == 1 {
+		err = db.QueryRow(`SELECT NamaBank, NomorRekening, NPWP, LinkFoto FROM PEKERJA WHERE Id = $1`, body.User).
+			Scan(
+				&oldValue.NamaBank,
+				&oldValue.NomorRekening,
+				&oldValue.NPWP,
+				&oldValue.LinkFoto)
+
+		if err == sql.ErrNoRows {
+			response := &UpdateUserResponseBody{
+				Status:  false,
+				Message: "Invalid Credential on pekerja",
+			}
+
+			json.NewEncoder(w).Encode(response)
+			return
+		} else if err != nil {
+			response := &UpdateUserResponseBody{
+				Status:  false,
+				Message: err.Error(),
+			}
+
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+	}
+
+	if body.Nama != "" {
+		oldValue.Nama = body.Nama
+	}
+
+	if body.JenisKelamin != "" {
+		oldValue.JenisKelamin = body.JenisKelamin
+	}
+
+	if !body.TglLahir.IsZero() {
+		oldValue.TglLahir = body.TglLahir
+	}
+
+	if body.Alamat != "" {
+		oldValue.Alamat = body.Alamat
+	}
+
+	if body.NamaBank != "" {
+		oldValue.NamaBank = body.NamaBank
+	}
+	if body.NomorRekening != "" {
+		oldValue.NomorRekening = body.NomorRekening
+	}
+
+	if body.NPWP != "" {
+		oldValue.NPWP = body.NPWP
+	}
+
+	if body.LinkFoto != "" {
+		oldValue.LinkFoto = body.LinkFoto
+	}
+
+	var current_user_id string
+	err = db.QueryRow(`UPDATE "user" SET Nama = $1, JenisKelamin = $2, TglLahir = $3, Alamat = $4 WHERE Id = $5 Returning Id`,
+		oldValue.Nama,
+		oldValue.JenisKelamin,
+		oldValue.TglLahir,
+		oldValue.Alamat,
+		body.User).Scan(&current_user_id)
+
+	if body.NoHP != "" {
+		err = db.QueryRow(`UPDATE "user" SET NoHP = $1 WHERE Id = $2 Returning Id`,
+			body.NoHP,
+			body.User).Scan(&current_user_id)
+	}
+
+	if err == sql.ErrNoRows {
+		response := &UpdateUserResponseBody{
+			Status:  false,
+			Message: "Invalid update on user",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := &UpdateUserResponseBody{
+			Status:  false,
+			Message: err.Error() + " User",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	if body.Role == 1 {
+		err = db.QueryRow(`UPDATE PEKERJA SET 
+        NamaBank = $1, 
+        NomorRekening = $2, 
+        NPWP = $3, 
+        LinkFoto = $4 
+        WHERE Id = $5 Returning Id`,
+			oldValue.NamaBank,
+			oldValue.NomorRekening,
+			oldValue.NPWP,
+			oldValue.LinkFoto,
+			body.User).Scan(&current_user_id)
+		if err == sql.ErrNoRows {
+			response := &UpdateUserResponseBody{
+				Status:  false,
+				Message: "Invalid Credential on pekerja",
+			}
+
+			json.NewEncoder(w).Encode(response)
+			return
+		} else if err != nil {
+			response := &UpdateUserResponseBody{
+				Status:  false,
+				Message: err.Error() + " Pekerja",
+			}
+
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+	}
+
+	response := &RegisterResponseBody{
+		Status:  true,
+		Message: fmt.Sprint("User dengan id $s berhasil di update", current_user_id),
 	}
 
 	json.NewEncoder(w).Encode(response)
