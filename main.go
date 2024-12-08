@@ -155,31 +155,6 @@ type MyPayTransactionPay struct {
 	AccountNo  string  `json:"account_no,omitempty"`
 }
 
-type MyPayTransactionWithdrawal struct {
-	UserID     string  `json:"user_id"`
-	KategoriID string  `json:"kategori_id"`
-	Nominal    float64 `json:"nominal"`
-	BankName   string  `json:"bank_name,omitempty"` // For withdrawals
-	AccountNo  string  `json:"account_no,omitempty"`
-}
-
-
-type AvailableJobsRequest struct {
-	WorkerID string `json:"worker_id"`
-}
-
-type Job struct {
-	JobID        string  `json:"job_id"`
-	ServiceName  string  `json:"service_name"`
-	ScheduledAt  string  `json:"scheduled_at"`
-	TotalCost    float64 `json:"total_cost"`
-}
-
-type AvailableJobsResponse struct {
-	Jobs []Job  `json:"jobs"`
-}
-
-
 
 func main() {
 	pgConnStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
@@ -202,6 +177,8 @@ func main() {
 	http.HandleFunc("/register", corsMiddleware(register))
 	http.HandleFunc("/getUser", corsMiddleware(getUser))
 	http.HandleFunc("/updateUser", corsMiddleware(updateUser))
+
+	//BAGIAN MERAH
 	//ENDPOINT MERAH
 	http.HandleFunc("/mypay/balance", corsMiddleware(getMyPayBalance))
 	http.HandleFunc("/mypay/history", corsMiddleware(getMyPayHistory))
