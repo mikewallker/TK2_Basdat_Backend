@@ -191,10 +191,21 @@ type PekerjaJobRequest struct {
 	UserID string `json:"user_id"`
 }
 
+type JobsDataDemand struct {
+	Id              string    `json:"id"`
+	Kategori        string    `json:"kategori"`
+	NamaSubkategori string    `json:"subkategori"`
+	TanggalPesan    time.Time `json:"tanggal"`
+	NamaPelanggan   string    `json:"nama"`
+	Sesi            int       `json:"sesi"`
+	Total           float64   `json:"total"`
+	Status          int       `json:"status"`
+}
+
 type PekerjaJobResponse struct {
-	Status    bool     `json:"status"`
-	Message   string   `json:"message"`
-	Pekerjaan []string `json:"pekerjaan"`
+	Status    bool             `json:"status"`
+	Message   string           `json:"message"`
+	Pekerjaan []JobsDataDemand `json:"pekerjaan"`
 }
 
 type JobUpdateStatusRequest struct {
@@ -1416,7 +1427,9 @@ func seePekerjaJob(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := db.Query(`SELECT Id FROM TR_PEMESANAN_JASA WHERE IdPekerja = $1`, body.UserID)
 
-	var pekerjaanList []string
+	fmt.Println(body.UserID)
+
+	var pekerjaanList []JobsDataDemand
 	var response PekerjaJobResponse
 	if err != nil {
 		response := &PekerjaJobResponse{
@@ -1430,12 +1443,70 @@ func seePekerjaJob(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 
 	for rows.Next() {
-		var pekerjaan string
-		if err := rows.Scan(&pekerjaan); err != nil {
+		var pemesanan string
+		if err := rows.Scan(&pemesanan); err != nil {
 			log.Println("Error scanning row:", err)
 			return
 		}
-		pekerjaanList = append(pekerjaanList, pekerjaan)
+
+		var response_pesan JobsDataDemand
+		db.QueryRow(`SELECT 
+			TJ.Id, 
+			SJ.NamaSubkategori, 
+			TJ.TglPemesanan, 
+			U.Nama,  
+			TJ.Sesi,
+			TJ.TotalBiaya,
+			KJ.NamaKategori
+			FROM TR_PEMESANAN_JASA AS TJ
+			LEFT JOIN SUBKATEGORI_JASA AS SJ ON TJ.IdKategoriJasa = SJ.Id
+			LEFT JOIN KATEGORI_JASA AS KJ ON KJ.Id = SJ.KategoriJasaId
+			LEFT JOIN "user" AS U ON U.Id = TJ.IdPelanggan
+			WHERE  
+			TJ.Id = $1
+			`, pemesanan).Scan(
+			&response_pesan.Id,
+			&response_pesan.NamaSubkategori,
+			&response_pesan.TanggalPesan,
+			&response_pesan.NamaPelanggan,
+			&response_pesan.Sesi,
+			&response_pesan.Total,
+			&response_pesan.Kategori,
+		)
+
+		db.QueryRow(`
+		SELECT 
+			TJ.Id, 
+			SJ.NamaSubkategori, 
+			TJ.TglPemesanan, 
+			U.Nama AS NamaPelanggan,  
+			TJ.Sesi,
+			TJ.TotalBiaya,
+			KJ.NamaKategori,
+			COUNT(TS.IdTrPemesanan) AS JumlahStatus
+		FROM 
+		    TR_PEMESANAN_JASA AS TJ
+			LEFT JOIN SUBKATEGORI_JASA AS SJ ON TJ.IdKategoriJasa = SJ.Id
+			LEFT JOIN KATEGORI_JASA AS KJ ON KJ.Id = SJ.KategoriJasaId
+			LEFT JOIN "user" AS U ON U.Id = TJ.IdPelanggan
+			LEFT JOIN TR_PEMESANAN_STATUS AS TS ON TS.IdTrPemesanan = TJ.Id
+		WHERE  
+   			 TJ.Id = $1
+		GROUP BY 
+  		  	TJ.Id, SJ.NamaSubkategori, TJ.TglPemesanan, U.Nama, TJ.Sesi, TJ.TotalBiaya, KJ.NamaKategori;
+		`, pemesanan).Scan(
+			&response_pesan.Id,
+			&response_pesan.NamaSubkategori,
+			&response_pesan.TanggalPesan,
+			&response_pesan.NamaPelanggan,
+			&response_pesan.Sesi,
+			&response_pesan.Total,
+			&response_pesan.Kategori,
+			&response_pesan.Status,
+		)
+		if response_pesan.Status > 2 {
+			pekerjaanList = append(pekerjaanList, response_pesan)
+		}
 	}
 
 	response.Pekerjaan = pekerjaanList
