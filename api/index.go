@@ -283,7 +283,7 @@ type BuyVoucherResponse struct {
 	Message string `json:"message"`
 }
 
-func main() {
+func Handler() {
 	pgConnStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
 
 	conn, err := sql.Open("postgres", pgConnStr)
