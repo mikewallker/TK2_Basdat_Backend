@@ -1907,8 +1907,8 @@ func IsPesananSelesai(db *sql.DB, pemesananID string) (bool, error) {
 	// Query untuk memeriksa apakah status pemesanan adalah "Pesanan selesai"
 	query := `
         SELECT COUNT(*) 
-        FROM sijarta.tr_pemesanan_status tps
-        JOIN sijarta.status_pesanan sp ON tps.idstatus = sp.id
+        FROM tr_pemesanan_status tps
+        JOIN status_pesanan sp ON tps.idstatus = sp.id
         WHERE tps.idtrpemesanan = $1 AND sp.status = 'Pesanan selesai'
     `
 	var count int
@@ -1922,7 +1922,7 @@ func IsPesananSelesai(db *sql.DB, pemesananID string) (bool, error) {
 func IsPelangganPemesan(db *sql.DB, userID, pemesananID string) (bool, error) {
     query := `
         SELECT COUNT(*)
-        FROM sijarta.tr_pemesanan_jasa
+        FROM tr_pemesanan_jasa
         WHERE id = $1 AND idpelanggan = $2
     `
     var count int
@@ -1964,7 +1964,7 @@ func CreateTestimoni(db *sql.DB, userID string, pemesananID string, teks string,
 
 	// Query untuk memasukkan testimoni
 	query := `
-        INSERT INTO sijarta.testimoni (idtrpemesanan, tgl, teks, rating)
+        INSERT INTO testimoni (idtrpemesanan, tgl, teks, rating)
         VALUES ($1, $2, $3, $4)
     `
 	_, err = db.Exec(query, pemesananID, tgl, teks, rating)
@@ -1979,8 +1979,8 @@ func GetTestimoniBySubkategori(db *sql.DB, subkategoriID string) ([]Testimoni, e
 	// Query untuk mendapatkan testimoni berdasarkan ID subkategori
 	query := `
         SELECT t.idtrpemesanan, t.tgl, t.teks, t.rating
-        FROM sijarta.testimoni t
-        JOIN sijarta.tr_pemesanan_jasa pj ON t.idtrpemesanan = pj.id
+        FROM testimoni t
+        JOIN tr_pemesanan_jasa pj ON t.idtrpemesanan = pj.id
         WHERE pj.idkategorijasa = $1
     `
 	rows, err := db.Query(query, subkategoriID)
@@ -2014,7 +2014,7 @@ func DeleteTestimoni(db *sql.DB, userID, pemesananID, tgl string) error {
 
 	// Query untuk menghapus testimoni berdasarkan ID pemesanan dan tanggal
 	query := `
-        DELETE FROM sijarta.testimoni
+        DELETE FROM testimoni
         WHERE idtrpemesanan = $1 AND tgl = $2
     `
 	_, err = db.Exec(query, pemesananID, tgl)
@@ -2118,8 +2118,8 @@ func getDiskonHandler(w http.ResponseWriter, r *http.Request) {
 	// Query untuk tabel voucher
 	voucherQuery := `
     SELECT d.kode, d.potongan, d.mintrpemesanan, v.jmlhariberlaku, v.kuotapenggunaan, v.harga
-    FROM sijarta.voucher v
-    JOIN sijarta.diskon d ON v.kode = d.kode
+    FROM voucher v
+    JOIN diskon d ON v.kode = d.kode
     `
 
 	rows, err := db.Query(voucherQuery)
@@ -2143,8 +2143,8 @@ func getDiskonHandler(w http.ResponseWriter, r *http.Request) {
 	// Query untuk tabel promo
 	promoQuery := `
     SELECT d.kode, d.potongan, d.mintrpemesanan, p.tglakhirberlaku
-    FROM sijarta.promo p
-    JOIN sijarta.diskon d ON p.kode = d.kode
+    FROM promo p
+    JOIN diskon d ON p.kode = d.kode
     `
 	promoRows, err := db.Query(promoQuery)
 	if err != nil {
@@ -2197,8 +2197,8 @@ func buyVoucherHandler(w http.ResponseWriter, r *http.Request) {
 	var harga float64
 	err = db.QueryRow(`
         SELECT d.potongan, d.mintrpemesanan, v.jmlhariberlaku, v.kuotapenggunaan, v.harga
-        FROM sijarta.voucher v
-        JOIN sijarta.diskon d ON v.kode = d.kode
+        FROM voucher v
+        JOIN diskon d ON v.kode = d.kode
         WHERE v.kode = $1
     `, body.VoucherCode).Scan(&potongan, &minTr, &jmlHari, &kuota, &harga)
 
@@ -2225,7 +2225,7 @@ func buyVoucherHandler(w http.ResponseWriter, r *http.Request) {
 	// Jika metode pembayaran bukan MyPay
 	if body.MetodeBayarId != myPayId {
 		_, err := db.Exec(`
-            INSERT INTO sijarta.tr_pembelian_voucher (id, tglawal, tglakhir, telahdigunakan, idpelanggan, idvoucher, idmetodebayar)
+            INSERT INTO tr_pembelian_voucher (id, tglawal, tglakhir, telahdigunakan, idpelanggan, idvoucher, idmetodebayar)
             VALUES ($1, $2, $3, 0, $4, $5, $6)`,
 			uuid.New(), tglAwal, tglAkhir, body.UserID, body.VoucherCode, body.MetodeBayarId)
 		if err != nil {
@@ -2247,7 +2247,7 @@ func buyVoucherHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Jika metode pembayaran menggunakan MyPay
 	var saldo float64
-	err = db.QueryRow(`SELECT saldomypay FROM sijarta."user" WHERE id = $1`, body.UserID).Scan(&saldo)
+	err = db.QueryRow(`SELECT saldomypay FROM "user" WHERE id = $1`, body.UserID).Scan(&saldo)
 	if err == sql.ErrNoRows {
 		response := BuyVoucherResponse{
 			Status:  false,
@@ -2274,7 +2274,7 @@ func buyVoucherHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newSaldo := saldo - harga
-	_, err = db.Exec(`UPDATE sijarta."user" SET saldomypay = $1 WHERE id = $2`, newSaldo, body.UserID)
+	_, err = db.Exec(`UPDATE "user" SET saldomypay = $1 WHERE id = $2`, newSaldo, body.UserID)
 	if err != nil {
 		response := BuyVoucherResponse{
 			Status:  false,
@@ -2285,7 +2285,7 @@ func buyVoucherHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = db.Exec(`
-        INSERT INTO sijarta.tr_pembelian_voucher (id, tglawal, tglakhir, telahdigunakan, idpelanggan, idvoucher, idmetodebayar)
+        INSERT INTO tr_pembelian_voucher (id, tglawal, tglakhir, telahdigunakan, idpelanggan, idvoucher, idmetodebayar)
         VALUES ($1, $2, $3, 0, $4, $5, $6)`,
 		uuid.New(), tglAwal, tglAkhir, body.UserID, body.VoucherCode, body.MetodeBayarId)
 
