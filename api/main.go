@@ -1,4 +1,4 @@
-package handler
+package main
 
 import (
 	"database/sql"
@@ -283,7 +283,7 @@ type BuyVoucherResponse struct {
 	Message string `json:"message"`
 }
 
-func Handler() {
+func main() {
 	pgConnStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
 
 	conn, err := sql.Open("postgres", pgConnStr)
