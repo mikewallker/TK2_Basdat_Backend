@@ -115,11 +115,16 @@ type MyPayHistoryResponse struct {
 	History []MyPayHistory `json:"history"`
 }
 
-type MyPayTransactionTransfer struct {
+type MyPayTransactionTransferRequest struct {
 	UserID     string  `json:"user_id"`
 	KategoriID string  `json:"kategori_id"`
 	Nominal    float64 `json:"nominal"`
-	ToUserID   string  `json:"to_user_id,omitempty"` // For transfers
+	ToUserID   string  `json:"to_user_id"` // For transfers
+}
+
+type MyPayTransactionTransferResponse struct {
+	Message string `json:"message"`
+	Status  bool   `json:"status"`
 }
 
 type MyPayTransactionTopUp struct {
@@ -1063,7 +1068,7 @@ func handleTransfer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var transaction MyPayTransactionTransfer
+	var transaction MyPayTransactionTransferRequest
 	err := json.NewDecoder(r.Body).Decode(&transaction)
 	if err != nil {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
@@ -1076,16 +1081,75 @@ func handleTransfer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = tx.Exec("UPDATE \"user\" SET SaldoMyPay = SaldoMyPay + $1 WHERE Id = $2", transaction.Nominal, transaction.UserID)
-	if err != nil {
-		tx.Rollback()
-		http.Error(w, "Failed to top-up", http.StatusInternalServerError)
+	var saldo float64
+	err = db.QueryRow(`SELECT SaldoMyPay FROM "user" WHERE Id = $1`, transaction.UserID).Scan(&saldo)
+	if err == sql.ErrNoRows {
+		response := &PickJobResponse{
+			Status:  false,
+			Message: "Invalid Credential",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := &PickJobResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if saldo < transaction.Nominal {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: "Saldo kurang dari nominal transfer",
+		}
+
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
+	var idUser string
+	err = db.QueryRow(`UPDATE "user" SET SaldoMyPay = SaldoMyPay - $1 WHERE Id = $2 Returning Id`, transaction.Nominal, transaction.UserID).Scan(&idUser)
+	if err == sql.ErrNoRows {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: "Invalid Credential",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	err = db.QueryRow(`UPDATE "user" SET SaldoMyPay = SaldoMyPay + $1 WHERE Id = $2 Returning Id`, transaction.Nominal, transaction.ToUserID).Scan(&idUser)
+	if err == sql.ErrNoRows {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: "Invalid Credential",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
 	location, err := time.LoadLocation("Asia/Jakarta")
 	if err != nil {
-		response := &PickJobResponse{
+		response := &MyPayTransactionTransferResponse{
 			Status:  false,
 			Message: err.Error(),
 		}
@@ -1101,13 +1165,22 @@ func handleTransfer(w http.ResponseWriter, r *http.Request) {
 	INTO TR_MYPAY (Id, UserId, Tgl, Nominal, KategoriId) VALUES ($1, $2, $3, $4, $5)`,
 		uuid.New(), transaction.UserID, date, transaction.Nominal, transaction.KategoriID)
 	if err != nil {
-		tx.Rollback()
-		http.Error(w, "Failed to record top-up transaction", http.StatusInternalServerError)
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: err.Error() + " err",
+		}
+
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	if err = tx.Commit(); err != nil {
-		http.Error(w, "Failed to commit transaction", http.StatusInternalServerError)
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
