@@ -13,11 +13,11 @@ import (
 )
 
 const (
-	host     = "localhost"
-	port     = 5432
-	user     = "tk_basdat"
-	password = "123"
-	dbname   = "tk_basdat"
+	host     = "aws-0-ap-southeast-1.pooler.supabase.com"
+	port     = 6543
+	user     = "postgres.uhfuxjntovgpqihpcfrk"
+	password = "tk2basdat123"
+	dbname   = "postgres"
 )
 
 var db *sql.DB
