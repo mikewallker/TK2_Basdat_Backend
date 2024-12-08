@@ -621,9 +621,9 @@ func getHomepage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		data = append(data, map[string]interface{}{
-			"kategori_id":   kategoriID,
-			"kategori_nama": kategoriNama,
-			"subkategori_id": subkategoriID,
+			"kategori_id":      kategoriID,
+			"kategori_nama":    kategoriNama,
+			"subkategori_id":   subkategoriID,
 			"subkategori_nama": subkategoriNama,
 		})
 	}
@@ -654,12 +654,12 @@ func getSubkategori(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		data = append(data, map[string]interface{}{
-			"subkategori_id": subID,
-			"subkategori_nama": subNama,
+			"subkategori_id":        subID,
+			"subkategori_nama":      subNama,
 			"subkategori_deskripsi": subDeskripsi,
-			"sesi_id": sesiID,
-			"sesi_nama": sesiNama,
-			"harga": harga,
+			"sesi_id":               sesiID,
+			"sesi_nama":             sesiNama,
+			"harga":                 harga,
 		})
 	}
 	json.NewEncoder(w).Encode(data)
