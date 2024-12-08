@@ -62,24 +62,25 @@ type GetUserRequestBody struct {
 }
 
 type GetUserResponseBody struct {
-	Status            bool      `json:"status"`
-	Message           string    `json:"message"`
-	User              string    `json:"userid"`
-	Role              int       `json:"role"`
-	Nama              string    `json:"name"`
-	JenisKelamin      string    `json:"sex"`
-	NoHP              string    `json:"number"`
-	Pwd               string    `json:"password"`
-	TglLahir          time.Time `json:"date"`
-	Alamat            string    `json:"address"`
-	SaldoMyPay        float64   `json:"saldo"`
-	Level             string    `json:"level"`
-	NamaBank          string    `json:"bank"`
-	NomorRekening     string    `json:"noRek"`
-	NPWP              string    `json:"npwp"`
-	LinkFoto          string    `json:"link"`
-	Rating            float64   `json:"rating"`
-	JmlPsnananSelesai int       `json:"amount"`
+	Status              bool      `json:"status"`
+	Message             string    `json:"message"`
+	User                string    `json:"userid"`
+	Role                int       `json:"role"`
+	Nama                string    `json:"name"`
+	JenisKelamin        string    `json:"sex"`
+	NoHP                string    `json:"number"`
+	Pwd                 string    `json:"password"`
+	TglLahir            time.Time `json:"date"`
+	Alamat              string    `json:"address"`
+	SaldoMyPay          float64   `json:"saldo"`
+	Level               string    `json:"level"`
+	NamaBank            string    `json:"bank"`
+	NomorRekening       string    `json:"noRek"`
+	NPWP                string    `json:"npwp"`
+	LinkFoto            string    `json:"link"`
+	Rating              float64   `json:"rating"`
+	JmlPsnananSelesai   int       `json:"amount"`
+	PekerjaKategoriJasa []string  `json:"pekerjakategorijasa"`
 }
 
 type UpdateUserRequestBody struct {
@@ -552,6 +553,27 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 			&response.LinkFoto,
 			&response.Rating,
 			&response.JmlPsnananSelesai)
+
+		rows, err := db.Query(`SELECT NamaKategori FROM KATEGORI_JASA LEFT JOIN PEKERJA_KATEGORI_JASA 
+		ON Id = KategoriJasaId WHERE PekerjaId = $1`, body.User)
+
+		var kategoriList []string
+		if err != nil {
+			log.Println("Error executing query:", err)
+			return
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var namaKategori string
+			if err := rows.Scan(&namaKategori); err != nil {
+				log.Println("Error scanning row:", err)
+				return
+			}
+			kategoriList = append(kategoriList, namaKategori)
+		}
+		response.PekerjaKategoriJasa = kategoriList
+
 		json.NewEncoder(w).Encode(response)
 	}
 }
