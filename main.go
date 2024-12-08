@@ -125,7 +125,7 @@ type MyPayTransactionTransfer struct {
 type MyPayTransactionTopUp struct {
 	UserID     string  `json:"userId"`
 	Nominal    float64 `json:"nominal"`
-	KategoriID int     `json:"kategoriId"`
+	KategoriID string  `json:"kategoriId"`
 }
 
 type MyPayKategori struct {
@@ -218,7 +218,6 @@ type JobUpdateStatusResponse struct {
 	Id      string `json:"id"`
 }
 
-
 // Struct Testimoni, Diskon, Voucher dari kode terakhir
 type Testimoni struct {
 	IdTrPemesanan string `json:"idTrPemesanan"`
@@ -244,8 +243,8 @@ type PromoItem struct {
 }
 
 type GetDiskonResponse struct {
-	Status  bool         `json:"status"`
-	Message string       `json:"message"`
+	Status  bool          `json:"status"`
+	Message string        `json:"message"`
 	Voucher []VoucherItem `json:"voucher"`
 	Promo   []PromoItem   `json:"promo"`
 }
@@ -289,7 +288,9 @@ func main() {
 	http.HandleFunc("/mypay/balance", corsMiddleware(getMyPayBalance))
 	http.HandleFunc("/mypay/history", corsMiddleware(getMyPayHistory))
 	http.HandleFunc("/mypay/topup", corsMiddleware(handleTopUp))
+	http.HandleFunc("/mypay/transfer", corsMiddleware(handleTransfer))
 	http.HandleFunc("/mypay/get-category-id", corsMiddleware(GetCategoryIdByName))
+
 	http.HandleFunc("/mypay/getPesananJasa", corsMiddleware(getPesananJasa))
 	http.HandleFunc("/mypay/getStatusIdByName", corsMiddleware(GetStatusIdByName))
 	http.HandleFunc("/mypay/processPayment", corsMiddleware(ProcessPayment))
@@ -301,7 +302,6 @@ func main() {
 
 	http.HandleFunc("/jobs/job-pekerja-id", corsMiddleware(seePekerjaJob))
 	http.HandleFunc("/jobs/job-pekerja-update", corsMiddleware(updatePekerjaJob))
-
 
 	// Endpoint baru untuk testimoni
 	http.HandleFunc("/createTestimoni", corsMiddleware(createTestimoniHandler))
@@ -464,6 +464,22 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if body.Nama != oldValue.Nama {
+		oldValue.Nama = body.Nama
+	}
+
+	if body.JenisKelamin != oldValue.JenisKelamin {
+		oldValue.JenisKelamin = body.JenisKelamin
+	}
+
+	if body.TglLahir != oldValue.TglLahir {
+		oldValue.TglLahir = body.TglLahir
+	}
+
+	if body.Alamat != oldValue.Alamat {
+		oldValue.Alamat = body.Alamat
+	}
+
 	var current_user_id string
 	err = db.QueryRow(`UPDATE "user" SET Nama = $1, JenisKelamin = $2, TglLahir = $3, Alamat = $4 WHERE Id = $5 Returning Id`,
 		oldValue.Nama,
@@ -521,6 +537,14 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if body.NPWP != oldValue.NPWP {
+			oldValue.NPWP = body.NPWP
+		}
+
+		if body.LinkFoto != oldValue.LinkFoto {
+			oldValue.LinkFoto = body.LinkFoto
+		}
+
 		err = db.QueryRow(`UPDATE PEKERJA SET 
         NPWP = $1, 
         LinkFoto = $2 
@@ -547,7 +571,6 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if body.NomorRekening != oldValue.NomorRekening && body.NamaBank != oldValue.NamaBank {
-			fmt.Println(body.NomorRekening + " " + body.NamaBank + " " + oldValue.NomorRekening + " " + oldValue.NamaBank)
 			err = db.QueryRow(`UPDATE PEKERJA SET 
 			NamaBank = $1, 
 			NomorRekening = $2 
@@ -573,7 +596,6 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		} else if body.NamaBank != oldValue.NamaBank {
-			fmt.Println("Masuk-[0]")
 			err = db.QueryRow(`UPDATE PEKERJA SET 
 			NamaBank = $1
 			WHERE Id = $2 Returning Id`,
@@ -597,7 +619,6 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		} else if body.NomorRekening != oldValue.NomorRekening {
-			fmt.Println("Masuk")
 			err = db.QueryRow(`UPDATE PEKERJA SET 
 			NomorRekening = $1
 			WHERE Id = $2 Returning Id`,
@@ -1003,8 +1024,82 @@ func handleTopUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = tx.Exec(`INSERT INTO TR_MYPAY (Id, UserId, Tgl, Nominal, KategoriId) VALUES (uuid_generate_v4(), $1, CURRENT_DATE, $2, $3)`,
-		transaction.UserID, transaction.Nominal, transaction.KategoriID)
+	location, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		response := &PickJobResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	currentTime := time.Now().In(location)
+
+	date := currentTime.Format("2006-01-02")
+
+	_, err = tx.Exec(`INSERT 
+	INTO TR_MYPAY (Id, UserId, Tgl, Nominal, KategoriId) VALUES ($1, $2, $3, $4, $5)`,
+		uuid.New(), transaction.UserID, date, transaction.Nominal, transaction.KategoriID)
+	if err != nil {
+		tx.Rollback()
+		http.Error(w, "Failed to record top-up transaction", http.StatusInternalServerError)
+		return
+	}
+
+	if err = tx.Commit(); err != nil {
+		http.Error(w, "Failed to commit transaction", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Top-up successful"})
+}
+
+func handleTransfer(w http.ResponseWriter, r *http.Request) {
+	// var request MyPayKategori
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var transaction MyPayTransactionTransfer
+	err := json.NewDecoder(r.Body).Decode(&transaction)
+	if err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		http.Error(w, "Failed to start transaction", http.StatusInternalServerError)
+		return
+	}
+
+	_, err = tx.Exec("UPDATE \"user\" SET SaldoMyPay = SaldoMyPay + $1 WHERE Id = $2", transaction.Nominal, transaction.UserID)
+	if err != nil {
+		tx.Rollback()
+		http.Error(w, "Failed to top-up", http.StatusInternalServerError)
+		return
+	}
+
+	location, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		response := &PickJobResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	currentTime := time.Now().In(location)
+
+	date := currentTime.Format("2006-01-02")
+
+	_, err = tx.Exec(`INSERT 
+	INTO TR_MYPAY (Id, UserId, Tgl, Nominal, KategoriId) VALUES ($1, $2, $3, $4, $5)`,
+		uuid.New(), transaction.UserID, date, transaction.Nominal, transaction.KategoriID)
 	if err != nil {
 		tx.Rollback()
 		http.Error(w, "Failed to record top-up transaction", http.StatusInternalServerError)
@@ -1064,7 +1159,7 @@ func GetCategoryIdByName(w http.ResponseWriter, r *http.Request) {
 }
 
 func getPesananJasa(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
+	if r.Method != http.MethodPatch {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
@@ -1401,8 +1496,6 @@ func pickAJob(w http.ResponseWriter, r *http.Request) {
 	time := currentTime.AddDate(0, 0, sesi).Format("2006-01-02 15:04:05")
 	time_status := currentTime.Format("2006-01-02 15:04:05")
 
-	fmt.Println(currentTime, date, time)
-
 	var value string
 	err = db.QueryRow(`
 	UPDATE TR_PEMESANAN_JASA 
@@ -1479,8 +1572,6 @@ func seePekerjaJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := db.Query(`SELECT Id FROM TR_PEMESANAN_JASA WHERE IdPekerja = $1`, body.UserID)
-
-	fmt.Println(body.UserID)
 
 	var pekerjaanList []JobsDataDemand
 	var response PekerjaJobResponse
@@ -1598,7 +1689,27 @@ func updatePekerjaJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var value int
+	var idPekerja string
 	err = db.QueryRow(`SELECT COUNT(IdTrPemesanan) AS Jumlah FROM TR_PEMESANAN_STATUS WHERE IdTrPemesanan = $1`, body.TRID).Scan(&value)
+	if err == sql.ErrNoRows {
+		response := &JobUpdateStatusResponse{
+			Status:  false,
+			Message: "Invalid Credential",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := &JobUpdateStatusResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	err = db.QueryRow(`SELECT IdPekerja FROM TR_PEMESANAN_JASA WHERE Id = $1`, body.TRID).Scan(&idPekerja)
 	if err == sql.ErrNoRows {
 		response := &JobUpdateStatusResponse{
 			Status:  false,
@@ -1638,6 +1749,28 @@ func updatePekerjaJob(w http.ResponseWriter, r *http.Request) {
 
 		json.NewEncoder(w).Encode(response)
 		return
+	} else if value == 5 {
+		err = db.QueryRow(`
+		UPDATE PEKERJA SET JmlPsnananSelesai = JmlPsnananSelesai + 1 WHERE Id = $1 Returning Id`,
+			idPekerja).Scan(&idPekerja)
+		if err == sql.ErrNoRows {
+			response := &JobUpdateStatusResponse{
+				Status:  false,
+				Message: "Invalid Credential",
+			}
+
+			json.NewEncoder(w).Encode(response)
+			return
+		} else if err != nil {
+			response := &JobUpdateStatusResponse{
+				Status:  false,
+				Message: err.Error() + "Here",
+			}
+
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
 	}
 
 	var id_tr string
@@ -1884,10 +2017,10 @@ func createTestimoniHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type createTestimoniReq struct {
-		UserID       string `json:"userId"`
-		PemesananID  string `json:"pemesananId"`
-		Teks         string `json:"teks"`
-		Rating       int    `json:"rating"`
+		UserID      string `json:"userId"`
+		PemesananID string `json:"pemesananId"`
+		Teks        string `json:"teks"`
+		Rating      int    `json:"rating"`
 	}
 
 	var req createTestimoniReq
