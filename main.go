@@ -218,6 +218,49 @@ type JobUpdateStatusResponse struct {
 	Id      string `json:"id"`
 }
 
+
+// Struct Testimoni, Diskon, Voucher dari kode terakhir
+type Testimoni struct {
+	IdTrPemesanan string `json:"idTrPemesanan"`
+	Tgl           string `json:"tgl"`
+	Teks          string `json:"teks"`
+	Rating        int    `json:"rating"`
+}
+
+type VoucherItem struct {
+	Kode            string  `json:"kode"`
+	Potongan        float64 `json:"potongan"`
+	MinTrPemesanan  int     `json:"minTrPemesanan"`
+	JmlHariBerlaku  int     `json:"jmlHariBerlaku"`
+	KuotaPenggunaan int     `json:"kuotaPenggunaan"`
+	Harga           float64 `json:"harga"`
+}
+
+type PromoItem struct {
+	Kode            string    `json:"kode"`
+	Potongan        float64   `json:"potongan"`
+	MinTrPemesanan  int       `json:"minTrPemesanan"`
+	TglAkhirBerlaku time.Time `json:"tglAkhirBerlaku"`
+}
+
+type GetDiskonResponse struct {
+	Status  bool         `json:"status"`
+	Message string       `json:"message"`
+	Voucher []VoucherItem `json:"voucher"`
+	Promo   []PromoItem   `json:"promo"`
+}
+
+type BuyVoucherRequest struct {
+	UserID        string `json:"userId"`
+	VoucherCode   string `json:"voucherCode"`
+	MetodeBayarId string `json:"metodeBayarId"`
+}
+
+type BuyVoucherResponse struct {
+	Status  bool   `json:"status"`
+	Message string `json:"message"`
+}
+
 func main() {
 	pgConnStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
 
@@ -258,6 +301,16 @@ func main() {
 
 	http.HandleFunc("/jobs/job-pekerja-id", corsMiddleware(seePekerjaJob))
 	http.HandleFunc("/jobs/job-pekerja-update", corsMiddleware(updatePekerjaJob))
+
+
+	// Endpoint baru untuk testimoni
+	http.HandleFunc("/createTestimoni", corsMiddleware(createTestimoniHandler))
+	http.HandleFunc("/getTestimoni", corsMiddleware(getTestimoniHandler))
+	http.HandleFunc("/deleteTestimoni", corsMiddleware(deleteTestimoniHandler))
+
+	// Endpoint untuk diskon & pembelian voucher
+	http.HandleFunc("/getDiskon", corsMiddleware(getDiskonHandler))
+	http.HandleFunc("/buyVoucher", corsMiddleware(buyVoucherHandler))
 
 	fmt.Println("Server is listening on port 8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
@@ -1711,5 +1764,384 @@ func getKategoriFromSub(w http.ResponseWriter, r *http.Request) {
 		Message:     "Berhasil Mendapatkan data",
 	}
 
+	json.NewEncoder(w).Encode(response)
+}
+
+// ------------------------------------------------------
+// Bagian Testimoni (Dari kode yang ingin digabungkan)
+// ------------------------------------------------------
+func IsPesananSelesai(db *sql.DB, pemesananID string) (bool, error) {
+	query := `
+        SELECT COUNT(*) 
+        FROM TR_PEMESANAN_STATUS tps
+        JOIN STATUS_PESANAN sp ON tps.IdStatus = sp.Id
+        WHERE tps.IdTrPemesanan = $1 AND sp.Status = 'Pesanan selesai'
+    `
+	var count int
+	err := db.QueryRow(query, pemesananID).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func IsPelangganPemesan(db *sql.DB, userID, pemesananID string) (bool, error) {
+	query := `
+        SELECT COUNT(*)
+        FROM TR_PEMESANAN_JASA
+        WHERE Id = $1 AND IdPelanggan = $2
+    `
+	var count int
+	err := db.QueryRow(query, pemesananID, userID).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func CreateTestimoni(db *sql.DB, userID string, pemesananID string, teks string, rating int) error {
+	isPemesan, err := IsPelangganPemesan(db, userID, pemesananID)
+	if err != nil {
+		return err
+	}
+	if !isPemesan {
+		return fmt.Errorf("anda bukan pelanggan yang memesan jasa ini")
+	}
+
+	selesai, err := IsPesananSelesai(db, pemesananID)
+	if err != nil {
+		return err
+	}
+	if !selesai {
+		return fmt.Errorf("pesanan belum selesai, tidak dapat memberikan testimoni")
+	}
+
+	tgl := time.Now().Format("2006-01-02")
+	query := `
+        INSERT INTO TESTIMONI (IdTrPemesanan, Tgl, Teks, Rating)
+        VALUES ($1, $2, $3, $4)
+    `
+	_, err = db.Exec(query, pemesananID, tgl, teks, rating)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func GetTestimoniBySubkategori(db *sql.DB, subkategoriID string) ([]Testimoni, error) {
+	query := `
+    SELECT t.IdTrPemesanan, t.Tgl, t.Teks, t.Rating
+    FROM TESTIMONI t
+    JOIN TR_PEMESANAN_JASA pj ON t.IdTrPemesanan = pj.Id
+    WHERE pj.IdKategoriJasa = $1
+    `
+	rows, err := db.Query(query, subkategoriID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []Testimoni
+	for rows.Next() {
+		var t Testimoni
+		err := rows.Scan(&t.IdTrPemesanan, &t.Tgl, &t.Teks, &t.Rating)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, t)
+	}
+
+	return result, nil
+}
+
+func DeleteTestimoni(db *sql.DB, userID, pemesananID, tgl string) error {
+	isPemesan, err := IsPelangganPemesan(db, userID, pemesananID)
+	if err != nil {
+		return err
+	}
+	if !isPemesan {
+		return fmt.Errorf("anda bukan pelanggan yang memesan jasa ini, tidak dapat menghapus testimoni")
+	}
+
+	query := `
+        DELETE FROM TESTIMONI
+        WHERE IdTrPemesanan = $1 AND Tgl = $2
+    `
+	_, err = db.Exec(query, pemesananID, tgl)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Handler create testimoni
+func createTestimoniHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	type createTestimoniReq struct {
+		UserID       string `json:"userId"`
+		PemesananID  string `json:"pemesananId"`
+		Teks         string `json:"teks"`
+		Rating       int    `json:"rating"`
+	}
+
+	var req createTestimoniReq
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err = CreateTestimoni(db, req.UserID, req.PemesananID, req.Teks, req.Rating)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Write([]byte("Testimoni berhasil ditambahkan"))
+}
+
+func getTestimoniHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+	subkategoriID := r.URL.Query().Get("subkategori_id")
+	if subkategoriID == "" {
+		http.Error(w, "subkategori_id is required", http.StatusBadRequest)
+		return
+	}
+
+	testimonies, err := GetTestimoniBySubkategori(db, subkategoriID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(testimonies)
+}
+
+func deleteTestimoniHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete && r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	type deleteTestimoniReq struct {
+		UserID      string `json:"userId"`
+		PemesananID string `json:"pemesananId"`
+		Tgl         string `json:"tgl"`
+	}
+
+	var req deleteTestimoniReq
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err = DeleteTestimoni(db, req.UserID, req.PemesananID, req.Tgl)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Write([]byte("Testimoni berhasil dihapus"))
+}
+
+// ------------------------------------------------------
+// Bagian Diskon & Voucher (dari kode yang ingin digabungkan)
+// ------------------------------------------------------
+func getDiskonHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	voucherQuery := `
+    SELECT d.Kode, d.Potongan, d.MinTrPemesanan, v.JmlHariBerlaku, v.KuotaPenggunaan, v.Harga
+    FROM VOUCHER v
+    JOIN DISKON d ON v.Kode = d.Kode
+    `
+
+	rows, err := db.Query(voucherQuery)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var voucherList []VoucherItem
+	for rows.Next() {
+		var v VoucherItem
+		err := rows.Scan(&v.Kode, &v.Potongan, &v.MinTrPemesanan, &v.JmlHariBerlaku, &v.KuotaPenggunaan, &v.Harga)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		voucherList = append(voucherList, v)
+	}
+
+	promoQuery := `
+    SELECT d.Kode, d.Potongan, d.MinTrPemesanan, p.TglAkhirBerlaku
+    FROM PROMO p
+    JOIN DISKON d ON p.Kode = d.Kode
+    `
+	promoRows, err := db.Query(promoQuery)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer promoRows.Close()
+
+	var promoList []PromoItem
+	for promoRows.Next() {
+		var p PromoItem
+		err := promoRows.Scan(&p.Kode, &p.Potongan, &p.MinTrPemesanan, &p.TglAkhirBerlaku)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		promoList = append(promoList, p)
+	}
+
+	response := GetDiskonResponse{
+		Status:  true,
+		Message: "Berhasil mendapatkan daftar voucher dan promo",
+		Voucher: voucherList,
+		Promo:   promoList,
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+func buyVoucherHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var body BuyVoucherRequest
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	var potongan float64
+	var minTr int
+	var jmlHari int
+	var kuota int
+	var harga float64
+	err = db.QueryRow(`
+        SELECT d.Potongan, d.MinTrPemesanan, v.JmlHariBerlaku, v.KuotaPenggunaan, v.Harga
+        FROM VOUCHER v
+        JOIN DISKON d ON v.Kode = d.Kode
+        WHERE v.Kode = $1
+    `, body.VoucherCode).Scan(&potongan, &minTr, &jmlHari, &kuota, &harga)
+
+	if err == sql.ErrNoRows {
+		response := BuyVoucherResponse{
+			Status:  false,
+			Message: "Voucher tidak ditemukan",
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := BuyVoucherResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	myPayId := "e2ae7f92-eefb-47a7-aa1b-c7d157ab94d7"
+	tglAwal := time.Now()
+	tglAkhir := tglAwal.AddDate(0, 0, jmlHari)
+
+	if body.MetodeBayarId != myPayId {
+		_, err := db.Exec(`
+            INSERT INTO TR_PEMBELIAN_VOUCHER (Id, TglAwal, TglAkhir, TelahDigunakan, IdPelanggan, IdVoucher, IdMetodeBayar)
+            VALUES ($1, $2, $3, 0, $4, $5, $6)`,
+			uuid.New(), tglAwal, tglAkhir, body.UserID, body.VoucherCode, body.MetodeBayarId)
+		if err != nil {
+			response := BuyVoucherResponse{
+				Status:  false,
+				Message: err.Error(),
+			}
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		response := BuyVoucherResponse{
+			Status:  true,
+			Message: "Voucher berhasil dibeli tanpa MyPay",
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	var saldo float64
+	err = db.QueryRow(`SELECT SaldoMyPay FROM "user" WHERE Id = $1`, body.UserID).Scan(&saldo)
+	if err == sql.ErrNoRows {
+		response := BuyVoucherResponse{
+			Status:  false,
+			Message: "User tidak ditemukan",
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := BuyVoucherResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	if saldo < harga {
+		response := BuyVoucherResponse{
+			Status:  false,
+			Message: "Saldo MyPay tidak cukup",
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	newSaldo := saldo - harga
+	_, err = db.Exec(`UPDATE "user" SET SaldoMyPay = $1 WHERE Id = $2`, newSaldo, body.UserID)
+	if err != nil {
+		response := BuyVoucherResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	_, err = db.Exec(`
+        INSERT INTO TR_PEMBELIAN_VOUCHER (Id, TglAwal, TglAkhir, TelahDigunakan, IdPelanggan, IdVoucher, IdMetodeBayar)
+        VALUES ($1, $2, $3, 0, $4, $5, $6)`,
+		uuid.New(), tglAwal, tglAkhir, body.UserID, body.VoucherCode, body.MetodeBayarId)
+
+	if err != nil {
+		response := BuyVoucherResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	response := BuyVoucherResponse{
+		Status:  true,
+		Message: "Voucher berhasil dibeli dengan MyPay",
+	}
 	json.NewEncoder(w).Encode(response)
 }
