@@ -15,7 +15,7 @@ import (
 const (
 	host     = "localhost"
 	port     = 5432
-	user     = "tk_basdat"
+	user     = "postgres"
 	password = "123"
 	dbname   = "tk_basdat"
 )
@@ -1771,74 +1771,88 @@ func getKategoriFromSub(w http.ResponseWriter, r *http.Request) {
 // Bagian Testimoni (Dari kode yang ingin digabungkan)
 // ------------------------------------------------------
 func IsPesananSelesai(db *sql.DB, pemesananID string) (bool, error) {
+	// Query untuk memeriksa apakah status pemesanan adalah "Pesanan selesai"
 	query := `
         SELECT COUNT(*) 
-        FROM TR_PEMESANAN_STATUS tps
-        JOIN STATUS_PESANAN sp ON tps.IdStatus = sp.Id
-        WHERE tps.IdTrPemesanan = $1 AND sp.Status = 'Pesanan selesai'
+        FROM sijarta.tr_pemesanan_status tps
+        JOIN sijarta.status_pesanan sp ON tps.idstatus = sp.id
+        WHERE tps.idtrpemesanan = $1 AND sp.status = 'Pesanan selesai'
     `
 	var count int
 	err := db.QueryRow(query, pemesananID).Scan(&count)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("gagal memeriksa status pemesanan: %v", err)
 	}
 	return count > 0, nil
 }
 
 func IsPelangganPemesan(db *sql.DB, userID, pemesananID string) (bool, error) {
-	query := `
+    query := `
         SELECT COUNT(*)
-        FROM TR_PEMESANAN_JASA
-        WHERE Id = $1 AND IdPelanggan = $2
+        FROM sijarta.tr_pemesanan_jasa
+        WHERE id = $1 AND idpelanggan = $2
     `
-	var count int
-	err := db.QueryRow(query, pemesananID, userID).Scan(&count)
-	if err != nil {
-		return false, err
-	}
-	return count > 0, nil
+    var count int
+    err := db.QueryRow(query, pemesananID, userID).Scan(&count)
+    if err != nil {
+        log.Printf("Error in IsPelangganPemesan: %v", err)
+        return false, err
+    }
+    log.Printf("Validation result: userID=%s, pemesananID=%s, count=%d", userID, pemesananID, count)
+    return count > 0, nil
 }
 
 func CreateTestimoni(db *sql.DB, userID string, pemesananID string, teks string, rating int) error {
+	// Validasi bahwa pengguna adalah pelanggan yang memesan jasa
 	isPemesan, err := IsPelangganPemesan(db, userID, pemesananID)
 	if err != nil {
-		return err
+		return fmt.Errorf("gagal memvalidasi pemesanan: %v", err)
 	}
 	if !isPemesan {
 		return fmt.Errorf("anda bukan pelanggan yang memesan jasa ini")
 	}
 
+	// Validasi bahwa pemesanan telah selesai
 	selesai, err := IsPesananSelesai(db, pemesananID)
 	if err != nil {
-		return err
+		return fmt.Errorf("gagal memvalidasi status pemesanan: %v", err)
 	}
 	if !selesai {
 		return fmt.Errorf("pesanan belum selesai, tidak dapat memberikan testimoni")
 	}
 
+	// Pastikan rating valid
+	if rating < 0 {
+		return fmt.Errorf("rating tidak boleh kurang dari 0")
+	}
+
+	// Format tanggal saat ini
 	tgl := time.Now().Format("2006-01-02")
+
+	// Query untuk memasukkan testimoni
 	query := `
-        INSERT INTO TESTIMONI (IdTrPemesanan, Tgl, Teks, Rating)
+        INSERT INTO sijarta.testimoni (idtrpemesanan, tgl, teks, rating)
         VALUES ($1, $2, $3, $4)
     `
 	_, err = db.Exec(query, pemesananID, tgl, teks, rating)
 	if err != nil {
-		return err
+		return fmt.Errorf("gagal menyimpan testimoni: %v", err)
 	}
 
 	return nil
 }
 
 func GetTestimoniBySubkategori(db *sql.DB, subkategoriID string) ([]Testimoni, error) {
+	// Query untuk mendapatkan testimoni berdasarkan ID subkategori
 	query := `
-    SELECT t.IdTrPemesanan, t.Tgl, t.Teks, t.Rating
-    FROM TESTIMONI t
-    JOIN TR_PEMESANAN_JASA pj ON t.IdTrPemesanan = pj.Id
-    WHERE pj.IdKategoriJasa = $1
+        SELECT t.idtrpemesanan, t.tgl, t.teks, t.rating
+        FROM sijarta.testimoni t
+        JOIN sijarta.tr_pemesanan_jasa pj ON t.idtrpemesanan = pj.id
+        WHERE pj.idkategorijasa = $1
     `
 	rows, err := db.Query(query, subkategoriID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("gagal menjalankan query: %v", err)
 	}
 	defer rows.Close()
 
@@ -1847,7 +1861,7 @@ func GetTestimoniBySubkategori(db *sql.DB, subkategoriID string) ([]Testimoni, e
 		var t Testimoni
 		err := rows.Scan(&t.IdTrPemesanan, &t.Tgl, &t.Teks, &t.Rating)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("gagal membaca hasil query: %v", err)
 		}
 		result = append(result, t)
 	}
@@ -1856,21 +1870,23 @@ func GetTestimoniBySubkategori(db *sql.DB, subkategoriID string) ([]Testimoni, e
 }
 
 func DeleteTestimoni(db *sql.DB, userID, pemesananID, tgl string) error {
+	// Validasi apakah user adalah pelanggan yang memesan jasa
 	isPemesan, err := IsPelangganPemesan(db, userID, pemesananID)
 	if err != nil {
-		return err
+		return fmt.Errorf("gagal memvalidasi pelanggan: %v", err)
 	}
 	if !isPemesan {
 		return fmt.Errorf("anda bukan pelanggan yang memesan jasa ini, tidak dapat menghapus testimoni")
 	}
 
+	// Query untuk menghapus testimoni berdasarkan ID pemesanan dan tanggal
 	query := `
-        DELETE FROM TESTIMONI
-        WHERE IdTrPemesanan = $1 AND Tgl = $2
+        DELETE FROM sijarta.testimoni
+        WHERE idtrpemesanan = $1 AND tgl = $2
     `
 	_, err = db.Exec(query, pemesananID, tgl)
 	if err != nil {
-		return err
+		return fmt.Errorf("gagal menghapus testimoni: %v", err)
 	}
 
 	return nil
@@ -1878,32 +1894,35 @@ func DeleteTestimoni(db *sql.DB, userID, pemesananID, tgl string) error {
 
 // Handler create testimoni
 func createTestimoniHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-		return
-	}
+    if r.Method != http.MethodPost {
+        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+        return
+    }
 
-	type createTestimoniReq struct {
-		UserID       string `json:"userId"`
-		PemesananID  string `json:"pemesananId"`
-		Teks         string `json:"teks"`
-		Rating       int    `json:"rating"`
-	}
+    type createTestimoniReq struct {
+        UserID       string `json:"userId"`
+        PemesananID  string `json:"pemesananId"`
+        Teks         string `json:"teks"`
+        Rating       int    `json:"rating"`
+    }
 
-	var req createTestimoniReq
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
+    var req createTestimoniReq
+    err := json.NewDecoder(r.Body).Decode(&req)
+    if err != nil {
+        log.Printf("Error decoding request body: %v", err)
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+    log.Printf("Received request: %+v", req)
 
-	err = CreateTestimoni(db, req.UserID, req.PemesananID, req.Teks, req.Rating)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+    err = CreateTestimoni(db, req.UserID, req.PemesananID, req.Teks, req.Rating)
+    if err != nil {
+        log.Printf("Error in CreateTestimoni: %v", err)
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
 
-	w.Write([]byte("Testimoni berhasil ditambahkan"))
+    w.Write([]byte("Testimoni berhasil ditambahkan"))
 }
 
 func getTestimoniHandler(w http.ResponseWriter, r *http.Request) {
@@ -1963,10 +1982,11 @@ func getDiskonHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Query untuk tabel voucher
 	voucherQuery := `
-    SELECT d.Kode, d.Potongan, d.MinTrPemesanan, v.JmlHariBerlaku, v.KuotaPenggunaan, v.Harga
-    FROM VOUCHER v
-    JOIN DISKON d ON v.Kode = d.Kode
+    SELECT d.kode, d.potongan, d.mintrpemesanan, v.jmlhariberlaku, v.kuotapenggunaan, v.harga
+    FROM sijarta.voucher v
+    JOIN sijarta.diskon d ON v.kode = d.kode
     `
 
 	rows, err := db.Query(voucherQuery)
@@ -1987,10 +2007,11 @@ func getDiskonHandler(w http.ResponseWriter, r *http.Request) {
 		voucherList = append(voucherList, v)
 	}
 
+	// Query untuk tabel promo
 	promoQuery := `
-    SELECT d.Kode, d.Potongan, d.MinTrPemesanan, p.TglAkhirBerlaku
-    FROM PROMO p
-    JOIN DISKON d ON p.Kode = d.Kode
+    SELECT d.kode, d.potongan, d.mintrpemesanan, p.tglakhirberlaku
+    FROM sijarta.promo p
+    JOIN sijarta.diskon d ON p.kode = d.kode
     `
 	promoRows, err := db.Query(promoQuery)
 	if err != nil {
@@ -2010,6 +2031,7 @@ func getDiskonHandler(w http.ResponseWriter, r *http.Request) {
 		promoList = append(promoList, p)
 	}
 
+	// Format response
 	response := GetDiskonResponse{
 		Status:  true,
 		Message: "Berhasil mendapatkan daftar voucher dan promo",
@@ -2017,6 +2039,8 @@ func getDiskonHandler(w http.ResponseWriter, r *http.Request) {
 		Promo:   promoList,
 	}
 
+	// Kirim response sebagai JSON
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -2039,10 +2063,10 @@ func buyVoucherHandler(w http.ResponseWriter, r *http.Request) {
 	var kuota int
 	var harga float64
 	err = db.QueryRow(`
-        SELECT d.Potongan, d.MinTrPemesanan, v.JmlHariBerlaku, v.KuotaPenggunaan, v.Harga
-        FROM VOUCHER v
-        JOIN DISKON d ON v.Kode = d.Kode
-        WHERE v.Kode = $1
+        SELECT d.potongan, d.mintrpemesanan, v.jmlhariberlaku, v.kuotapenggunaan, v.harga
+        FROM sijarta.voucher v
+        JOIN sijarta.diskon d ON v.kode = d.kode
+        WHERE v.kode = $1
     `, body.VoucherCode).Scan(&potongan, &minTr, &jmlHari, &kuota, &harga)
 
 	if err == sql.ErrNoRows {
@@ -2061,13 +2085,14 @@ func buyVoucherHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	myPayId := "e2ae7f92-eefb-47a7-aa1b-c7d157ab94d7"
+	myPayId := "e2ae7f92-eefb-47a7-aa1b-c7d157ab94d7" // UUID metode pembayaran MyPay
 	tglAwal := time.Now()
 	tglAkhir := tglAwal.AddDate(0, 0, jmlHari)
 
+	// Jika metode pembayaran bukan MyPay
 	if body.MetodeBayarId != myPayId {
 		_, err := db.Exec(`
-            INSERT INTO TR_PEMBELIAN_VOUCHER (Id, TglAwal, TglAkhir, TelahDigunakan, IdPelanggan, IdVoucher, IdMetodeBayar)
+            INSERT INTO sijarta.tr_pembelian_voucher (id, tglawal, tglakhir, telahdigunakan, idpelanggan, idvoucher, idmetodebayar)
             VALUES ($1, $2, $3, 0, $4, $5, $6)`,
 			uuid.New(), tglAwal, tglAkhir, body.UserID, body.VoucherCode, body.MetodeBayarId)
 		if err != nil {
@@ -2087,8 +2112,9 @@ func buyVoucherHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Jika metode pembayaran menggunakan MyPay
 	var saldo float64
-	err = db.QueryRow(`SELECT SaldoMyPay FROM "user" WHERE Id = $1`, body.UserID).Scan(&saldo)
+	err = db.QueryRow(`SELECT saldomypay FROM sijarta."user" WHERE id = $1`, body.UserID).Scan(&saldo)
 	if err == sql.ErrNoRows {
 		response := BuyVoucherResponse{
 			Status:  false,
@@ -2115,7 +2141,7 @@ func buyVoucherHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newSaldo := saldo - harga
-	_, err = db.Exec(`UPDATE "user" SET SaldoMyPay = $1 WHERE Id = $2`, newSaldo, body.UserID)
+	_, err = db.Exec(`UPDATE sijarta."user" SET saldomypay = $1 WHERE id = $2`, newSaldo, body.UserID)
 	if err != nil {
 		response := BuyVoucherResponse{
 			Status:  false,
@@ -2126,7 +2152,7 @@ func buyVoucherHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = db.Exec(`
-        INSERT INTO TR_PEMBELIAN_VOUCHER (Id, TglAwal, TglAkhir, TelahDigunakan, IdPelanggan, IdVoucher, IdMetodeBayar)
+        INSERT INTO sijarta.tr_pembelian_voucher (id, tglawal, tglakhir, telahdigunakan, idpelanggan, idvoucher, idmetodebayar)
         VALUES ($1, $2, $3, 0, $4, $5, $6)`,
 		uuid.New(), tglAwal, tglAkhir, body.UserID, body.VoucherCode, body.MetodeBayarId)
 
