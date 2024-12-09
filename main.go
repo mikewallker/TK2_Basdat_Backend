@@ -13,11 +13,11 @@ import (
 )
 
 const (
-	host     = "localhost"
-	port     = 5432
-	user     = "tk_basdat"
-	password = "123"
-	dbname   = "tk_basdat"
+	host     = "aws-0-ap-southeast-1.pooler.supabase.com"
+	port     = 6543
+	user     = "postgres.uhfuxjntovgpqihpcfrk"
+	password = "tk2basdat123"
+	dbname   = "postgres"
 )
 
 var db *sql.DB
@@ -62,24 +62,25 @@ type GetUserRequestBody struct {
 }
 
 type GetUserResponseBody struct {
-	Status            bool      `json:"status"`
-	Message           string    `json:"message"`
-	User              string    `json:"userid"`
-	Role              int       `json:"role"`
-	Nama              string    `json:"name"`
-	JenisKelamin      string    `json:"sex"`
-	NoHP              string    `json:"number"`
-	Pwd               string    `json:"password"`
-	TglLahir          time.Time `json:"date"`
-	Alamat            string    `json:"address"`
-	SaldoMyPay        float64   `json:"saldo"`
-	Level             string    `json:"level"`
-	NamaBank          string    `json:"bank"`
-	NomorRekening     string    `json:"noRek"`
-	NPWP              string    `json:"npwp"`
-	LinkFoto          string    `json:"link"`
-	Rating            float64   `json:"rating"`
-	JmlPsnananSelesai int       `json:"amount"`
+	Status              bool      `json:"status"`
+	Message             string    `json:"message"`
+	User                string    `json:"userid"`
+	Role                int       `json:"role"`
+	Nama                string    `json:"name"`
+	JenisKelamin        string    `json:"sex"`
+	NoHP                string    `json:"number"`
+	Pwd                 string    `json:"password"`
+	TglLahir            time.Time `json:"date"`
+	Alamat              string    `json:"address"`
+	SaldoMyPay          float64   `json:"saldo"`
+	Level               string    `json:"level"`
+	NamaBank            string    `json:"bank"`
+	NomorRekening       string    `json:"noRek"`
+	NPWP                string    `json:"npwp"`
+	LinkFoto            string    `json:"link"`
+	Rating              float64   `json:"rating"`
+	JmlPsnananSelesai   int       `json:"amount"`
+	PekerjaKategoriJasa []string  `json:"pekerjakategorijasa"`
 }
 
 type UpdateUserRequestBody struct {
@@ -101,33 +102,49 @@ type UpdateUserResponseBody struct {
 	Status  bool   `json:"status"`
 }
 
-//BAGIAN MERAH
+// BAGIAN MERAH
 type MyPayHistory struct {
-	ID        string  `json:"id"`
-	Tgl       string  `json:"date"`
-	Nominal   float64 `json:"nominal"`
-	Kategori  string  `json:"category"`
+	ID       string  `json:"id"`
+	Tgl      string  `json:"date"`
+	Nominal  float64 `json:"nominal"`
+	Kategori string  `json:"category"`
 }
 
 type MyPayHistoryResponse struct {
-	UserID   string         `json:"user_id"`
-	History  []MyPayHistory `json:"history"`
+	UserID  string         `json:"user_id"`
+	History []MyPayHistory `json:"history"`
 }
 
-type MyPayTransactionTransfer struct {
+type MyPayWithdrawalRequest struct {
 	UserID     string  `json:"user_id"`
 	KategoriID string  `json:"kategori_id"`
 	Nominal    float64 `json:"nominal"`
-	ToUserID   string  `json:"to_user_id,omitempty"` // For transfers
+}
+
+type MyPayWithdrawalResponse struct {
+	Message string `json:"message"`
+	Status  bool   `json:"status"`
+}
+
+type MyPayTransactionTransferRequest struct {
+	UserID     string  `json:"user_id"`
+	KategoriID string  `json:"kategori_id"`
+	Nominal    float64 `json:"nominal"`
+	ToUserID   string  `json:"to_user_id"` // For transfers
+}
+
+type MyPayTransactionTransferResponse struct {
+	Message string `json:"message"`
+	Status  bool   `json:"status"`
 }
 
 type MyPayTransactionTopUp struct {
-	UserID    string  `json:"userId"`
-	Nominal   float64 `json:"nominal"`
-	KategoriID int    `json:"kategoriId"`
+	UserID     string  `json:"userId"`
+	Nominal    float64 `json:"nominal"`
+	KategoriID string  `json:"kategoriId"`
 }
 
-type MyPayKategori struct{
+type MyPayKategori struct {
 	NamaKategori string `json:"namaKategori"`
 }
 
@@ -136,13 +153,15 @@ type GetPesananJasaRequestBody struct {
 }
 
 type GetPesananJasaResponseBody struct {
-	Status   bool            `json:"status"`
-	Message  string          `json:"message"`
-	Pesanan  []PesananJasa   `json:"pesanan"`
+	Status  bool          `json:"status"`
+	Message string        `json:"message"`
+	Pesanan []PesananJasa `json:"pesanan"`
 }
 
 type PesananJasa struct {
-	NamaJasa  string  `json:"nama_jasa"`
+	Id         string  `json:"id"`
+	NamaJasa   string  `json:"nama_jasa"`
+	Sesi       int     `json:"sesi"`
 	TotalBiaya float64 `json:"total_biaya"`
 }
 
@@ -150,11 +169,119 @@ type MyPayTransactionPay struct {
 	UserID     string  `json:"user_id"`
 	KategoriID string  `json:"kategori_id"`
 	Nominal    float64 `json:"nominal"`
-	ToUserID   string  `json:"to_user_id,omitempty"` // For transfers
-	BankName   string  `json:"bank_name,omitempty"` // For withdrawals
-	AccountNo  string  `json:"account_no,omitempty"`
+	ToUserID   string  `json:"to_user_id"` // For transfers
+	BankName   string  `json:"bank_name"`  // For withdrawals
+	AccountNo  string  `json:"account_no"`
 }
 
+type GetJobsRequest struct {
+	UserID string `json:"user_id"`
+}
+
+type JobsData struct {
+	Id              string    `json:"id"`
+	Kategori        string    `json:"kategori"`
+	NamaSubkategori string    `json:"subkategori"`
+	TanggalPesan    time.Time `json:"tanggal"`
+	NamaPelanggan   string    `json:"nama"`
+	Sesi            int       `json:"sesi"`
+	Total           float64   `json:"total"`
+}
+
+type GetJobsResponse struct {
+	Status  bool       `json:"status"`
+	Message string     `json:"message"`
+	Pesanan []JobsData `json:"pesanan"`
+}
+
+type PickJobRequest struct {
+	UserID string `json:"user_id"`
+	TRID   string `json:"transaksi_pemesanan_jasa_id"`
+}
+
+type PickJobResponse struct {
+	Status  bool   `json:"status"`
+	Message string `json:"message"`
+	Id      string `json:"id"`
+}
+
+type PekerjaJobRequest struct {
+	UserID string `json:"user_id"`
+}
+
+type JobsDataDemand struct {
+	Id              string    `json:"id"`
+	Kategori        string    `json:"kategori"`
+	NamaSubkategori string    `json:"subkategori"`
+	TanggalPesan    time.Time `json:"tanggal"`
+	NamaPelanggan   string    `json:"nama"`
+	Sesi            int       `json:"sesi"`
+	Total           float64   `json:"total"`
+	Status          int       `json:"status"`
+}
+
+type PekerjaJobResponse struct {
+	Status    bool             `json:"status"`
+	Message   string           `json:"message"`
+	Pekerjaan []JobsDataDemand `json:"pekerjaan"`
+}
+
+type JobUpdateStatusRequest struct {
+	TRID string `json:"transaksi_pemesanan_jasa_id"`
+}
+
+type JobUpdateStatusResponse struct {
+	Status  bool   `json:"status"`
+	Message string `json:"message"`
+	Id      string `json:"id"`
+}
+
+type ProcessPaymentResponse struct {
+	Status  bool   `json:"status"`  // UUID format
+	Message string `json:"message"` // UUID format
+}
+
+// Struct Testimoni, Diskon, Voucher dari kode terakhir
+type Testimoni struct {
+	IdTrPemesanan string `json:"idTrPemesanan"`
+	Tgl           string `json:"tgl"`
+	Teks          string `json:"teks"`
+	Rating        int    `json:"rating"`
+}
+
+type VoucherItem struct {
+	Kode            string  `json:"kode"`
+	Potongan        float64 `json:"potongan"`
+	MinTrPemesanan  int     `json:"minTrPemesanan"`
+	JmlHariBerlaku  int     `json:"jmlHariBerlaku"`
+	KuotaPenggunaan int     `json:"kuotaPenggunaan"`
+	Harga           float64 `json:"harga"`
+}
+
+type PromoItem struct {
+	Kode            string    `json:"kode"`
+	Potongan        float64   `json:"potongan"`
+	MinTrPemesanan  int       `json:"minTrPemesanan"`
+	TglAkhirBerlaku time.Time `json:"tglAkhirBerlaku"`
+}
+
+type GetDiskonResponse struct {
+	Status  bool          `json:"status"`
+	Message string        `json:"message"`
+	Voucher []VoucherItem `json:"voucher"`
+	Promo   []PromoItem   `json:"promo"`
+}
+
+type BuyVoucherRequest struct {
+	UserID        string `json:"userId"`
+	VoucherCode   string `json:"voucherCode"`
+	MetodeBayarId string `json:"metodeBayarId"`
+}
+
+type BuyVoucherResponse struct {
+	Status  bool   `json:"status"`
+	Message string `json:"message"`
+}
 
 func main() {
 	pgConnStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
@@ -177,20 +304,37 @@ func main() {
 	http.HandleFunc("/register", corsMiddleware(register))
 	http.HandleFunc("/getUser", corsMiddleware(getUser))
 	http.HandleFunc("/updateUser", corsMiddleware(updateUser))
+	http.HandleFunc("/homepage", getHomepage)
+	http.HandleFunc("/subkategori", getSubkategori)
+	http.HandleFunc("/pesan", createPesanan)
 
-	//BAGIAN MERAH
-	//ENDPOINT MERAH
 	http.HandleFunc("/mypay/balance", corsMiddleware(getMyPayBalance))
 	http.HandleFunc("/mypay/history", corsMiddleware(getMyPayHistory))
 	http.HandleFunc("/mypay/topup", corsMiddleware(handleTopUp))
-	http.HandleFunc("mypay/get-category-id", corsMiddleware(GetCategoryIdByName))
-	http.HandleFunc("mypay/getPesananJasa", corsMiddleware(getPesananJasa))
-	http.HandleFunc("mypay/getStatusIdByName", corsMiddleware(GetStatusIdByName))
-	http.HandleFunc("mypay/processPayment", corsMiddleware(ProcessPayment))
-	http.HandleFunc("/mypay/transaction", corsMiddleware(handleMyPayTransaction))
-	http.HandleFunc("/mypay/transaction", corsMiddleware(handleMyPayTransaction))
-	http.HandleFunc("/mypay/transaction", corsMiddleware(handleMyPayTransaction))
+	http.HandleFunc("/mypay/transfer", corsMiddleware(handleTransfer))
+	http.HandleFunc("/mypay/withdrawal", corsMiddleware(handleWithdraw))
+	http.HandleFunc("/mypay/get-category-id", corsMiddleware(GetCategoryIdByName))
+
+	http.HandleFunc("/mypay/getPesananJasa", corsMiddleware(getPesananJasa))
+	http.HandleFunc("/mypay/getStatusIdByName", corsMiddleware(GetStatusIdByName))
+	http.HandleFunc("/mypay/processPayment", corsMiddleware(ProcessPayment))
+	// http.HandleFunc("/mypay/transaction", corsMiddleware(handleMyPayTransaction))
+	http.HandleFunc("/pekerja/get-kategori-sub", corsMiddleware(getKategoriFromSub))
+
 	http.HandleFunc("/jobs/available", corsMiddleware(getAvailableJobs))
+	http.HandleFunc("/jobs/get-job", corsMiddleware(pickAJob))
+
+	http.HandleFunc("/jobs/job-pekerja-id", corsMiddleware(seePekerjaJob))
+	http.HandleFunc("/jobs/job-pekerja-update", corsMiddleware(updatePekerjaJob))
+
+	// Endpoint baru untuk testimoni
+	http.HandleFunc("/createTestimoni", corsMiddleware(createTestimoniHandler))
+	http.HandleFunc("/getTestimoni", corsMiddleware(getTestimoniHandler))
+	http.HandleFunc("/deleteTestimoni", corsMiddleware(deleteTestimoniHandler))
+
+	// Endpoint untuk diskon & pembelian voucher
+	http.HandleFunc("/getDiskon", corsMiddleware(getDiskonHandler))
+	http.HandleFunc("/buyVoucher", corsMiddleware(buyVoucherHandler))
 
 	fmt.Println("Server is listening on port 8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
@@ -286,6 +430,7 @@ func register(w http.ResponseWriter, r *http.Request) {
 			json.NewEncoder(w).Encode(response)
 			return
 		} else if err != nil {
+			db.QueryRow(`DELETE FROM "user" WHERE Id = $1`, userId)
 			response := &RegisterResponseBody{
 				Status:  false,
 				Message: err.Error(),
@@ -342,6 +487,22 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 
 		json.NewEncoder(w).Encode(response)
 		return
+	}
+
+	if body.Nama != oldValue.Nama {
+		oldValue.Nama = body.Nama
+	}
+
+	if body.JenisKelamin != oldValue.JenisKelamin {
+		oldValue.JenisKelamin = body.JenisKelamin
+	}
+
+	if body.TglLahir != oldValue.TglLahir {
+		oldValue.TglLahir = body.TglLahir
+	}
+
+	if body.Alamat != oldValue.Alamat {
+		oldValue.Alamat = body.Alamat
 	}
 
 	var current_user_id string
@@ -401,6 +562,14 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if body.NPWP != oldValue.NPWP {
+			oldValue.NPWP = body.NPWP
+		}
+
+		if body.LinkFoto != oldValue.LinkFoto {
+			oldValue.LinkFoto = body.LinkFoto
+		}
+
 		err = db.QueryRow(`UPDATE PEKERJA SET 
         NPWP = $1, 
         LinkFoto = $2 
@@ -427,7 +596,6 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if body.NomorRekening != oldValue.NomorRekening && body.NamaBank != oldValue.NamaBank {
-			fmt.Println(body.NomorRekening + " " + body.NamaBank + " " + oldValue.NomorRekening + " " + oldValue.NamaBank)
 			err = db.QueryRow(`UPDATE PEKERJA SET 
 			NamaBank = $1, 
 			NomorRekening = $2 
@@ -453,7 +621,6 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		} else if body.NamaBank != oldValue.NamaBank {
-			fmt.Println("Masuk-[0]")
 			err = db.QueryRow(`UPDATE PEKERJA SET 
 			NamaBank = $1
 			WHERE Id = $2 Returning Id`,
@@ -477,7 +644,6 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		} else if body.NomorRekening != oldValue.NomorRekening {
-			fmt.Println("Masuk")
 			err = db.QueryRow(`UPDATE PEKERJA SET 
 			NomorRekening = $1
 			WHERE Id = $2 Returning Id`,
@@ -621,67 +787,185 @@ func getUser(w http.ResponseWriter, r *http.Request) {
 			&response.LinkFoto,
 			&response.Rating,
 			&response.JmlPsnananSelesai)
+
+		rows, err := db.Query(`SELECT NamaKategori FROM KATEGORI_JASA LEFT JOIN PEKERJA_KATEGORI_JASA 
+		ON Id = KategoriJasaId WHERE PekerjaId = $1`, body.User)
+
+		var kategoriList []string
+		if err != nil {
+			log.Println("Error executing query:", err)
+			return
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var namaKategori string
+			if err := rows.Scan(&namaKategori); err != nil {
+				log.Println("Error scanning row:", err)
+				return
+			}
+			kategoriList = append(kategoriList, namaKategori)
+		}
+		response.PekerjaKategoriJasa = kategoriList
+
 		json.NewEncoder(w).Encode(response)
 	}
 }
 
-//BAGIAN MERAH
+// Get Homepage (all categories and subcategories)
+func getHomepage(w http.ResponseWriter, r *http.Request) {
+	rows, err := db.Query(`
+		SELECT k.id, k.nama, s.id, s.nama
+		FROM kategori_jasa k
+		LEFT JOIN subkategori_jasa s ON k.id = s.id_kategori`)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var data []map[string]interface{}
+	for rows.Next() {
+		var kategoriID, subkategoriID int
+		var kategoriNama, subkategoriNama string
+		if err := rows.Scan(&kategoriID, &kategoriNama, &subkategoriID, &subkategoriNama); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		data = append(data, map[string]interface{}{
+			"kategori_id":      kategoriID,
+			"kategori_nama":    kategoriNama,
+			"subkategori_id":   subkategoriID,
+			"subkategori_nama": subkategoriNama,
+		})
+	}
+	json.NewEncoder(w).Encode(data)
+}
+
+// Get Subkategori and Sessions
+func getSubkategori(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	rows, err := db.Query(`
+		SELECT s.id, s.nama, s.deskripsi, sesi.id, sesi.nama_sesi, sesi.harga
+		FROM subkategori_jasa s
+		LEFT JOIN sesi_layanan sesi ON s.id = sesi.id_subkategori
+		WHERE s.id = $1`, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var data []map[string]interface{}
+	for rows.Next() {
+		var subID, sesiID int
+		var subNama, subDeskripsi, sesiNama string
+		var harga float64
+		if err := rows.Scan(&subID, &subNama, &subDeskripsi, &sesiID, &sesiNama, &harga); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		data = append(data, map[string]interface{}{
+			"subkategori_id":        subID,
+			"subkategori_nama":      subNama,
+			"subkategori_deskripsi": subDeskripsi,
+			"sesi_id":               sesiID,
+			"sesi_nama":             sesiNama,
+			"harga":                 harga,
+		})
+	}
+	json.NewEncoder(w).Encode(data)
+}
+
+// Create Order
+func createPesanan(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var body struct {
+		UserID           string  `json:"user_id"`
+		SesiID           int     `json:"sesi_id"`
+		Tanggal          string  `json:"tanggal"`
+		Diskon           float64 `json:"diskon"`
+		MetodePembayaran string  `json:"metode_pembayaran"`
+		Total            float64 `json:"total"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "Invalid body", http.StatusBadRequest)
+		return
+	}
+
+	_, err := db.Exec(`
+		INSERT INTO pesanan (id_user, id_sesi, tanggal, diskon, metode_pembayaran, total, status)
+		VALUES ($1, $2, $3, $4, $5, $6, 'Menunggu Pembayaran')`,
+		body.UserID, body.SesiID, body.Tanggal, body.Diskon, body.MetodePembayaran, body.Total)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("Order created"))
+}
+
+// BAGIAN MERAH
 // MyPay model to track user's balance
 type MyPay struct {
-    ID       int     `json:"id"`
-    UserID   int     `json:"user_id"`
-    Balance  float64 `json:"balance"`
+	ID      int     `json:"id"`
+	UserID  int     `json:"user_id"`
+	Balance float64 `json:"balance"`
 }
 
 // Service Order model
 type ServiceOrder struct {
-    ID           int    `json:"id"`
-    UserID       int    `json:"user_id"`
-    WorkerID     int    `json:"worker_id"`
-    ServiceName  string `json:"service_name"`
-    Status       string `json:"status"`  // Example: "Looking for Worker", "Worker Assigned", etc.
-    CreatedAt    string `json:"created_at"`
-    ScheduledAt  string `json:"scheduled_at"`
+	ID          int    `json:"id"`
+	UserID      int    `json:"user_id"`
+	WorkerID    int    `json:"worker_id"`
+	ServiceName string `json:"service_name"`
+	Status      string `json:"status"` // Example: "Looking for Worker", "Worker Assigned", etc.
+	CreatedAt   string `json:"created_at"`
+	ScheduledAt string `json:"scheduled_at"`
 }
-
 
 // Get MyPay Balance for User
 func getMyPayBalance(w http.ResponseWriter, r *http.Request) {
-    var request GetUserRequestBody
+	var request GetUserRequestBody
 
-    // Decode the JSON body to get user ID
-    decoder := json.NewDecoder(r.Body)
-    if err := decoder.Decode(&request); err != nil {
-        http.Error(w, "Invalid request body", http.StatusBadRequest)
-        return
-    }
+	// Decode the JSON body to get user ID
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&request); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
 
-    if request.User == "" {
-        http.Error(w, "Missing user ID in request body", http.StatusBadRequest)
-        return
-    }
+	if request.User == "" {
+		http.Error(w, "Missing user ID in request body", http.StatusBadRequest)
+		return
+	}
 
-    var balance float64
-	var noHP string 
+	var balance float64
+	var noHP string
 
-    // Use the provided user ID to get the balance
-    err := db.QueryRow("SELECT SaldoMyPay, NoHP FROM \"user\" WHERE Id = $1", request.User).Scan(&balance, &noHP)
-    if err == sql.ErrNoRows {
-        http.Error(w, "User not found", http.StatusNotFound)
-        return
-    } else if err != nil {
-        http.Error(w, "Failed to retrieve balance", http.StatusInternalServerError)
-        return
-    }
+	// Use the provided user ID to get the balance
+	err := db.QueryRow("SELECT SaldoMyPay, NoHP FROM \"user\" WHERE Id = $1", request.User).Scan(&balance, &noHP)
+	if err == sql.ErrNoRows {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		http.Error(w, "Failed to retrieve balance", http.StatusInternalServerError)
+		return
+	}
 
-    // Set the response headers and write the balance in JSON format
-    w.Header().Set("Content-Type", "application/json")
-    response := map[string]interface{}{
-        "user_id": request.User,
-        "balance": balance,
+	// Set the response headers and write the balance in JSON format
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]interface{}{
+		"user_id": request.User,
+		"balance": balance,
 		"no_hp":   noHP,
-    }
-    json.NewEncoder(w).Encode(response)
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 // Get History Transaction for User
@@ -739,7 +1023,7 @@ func getMyPayHistory(w http.ResponseWriter, r *http.Request) {
 
 // Handle Top-Up
 func handleTopUp(w http.ResponseWriter, r *http.Request) {
-	var request MyPayKategori
+	// var request MyPayKategori
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
@@ -765,8 +1049,18 @@ func handleTopUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = tx.Exec(`INSERT INTO TR_MYPAY (Id, UserId, Tgl, Nominal, KategoriId) VALUES (uuid_generate_v4(), $1, CURRENT_DATE, $2, $3)`,
-		transaction.UserID, transaction.Nominal, transaction.KategoriID)
+	location, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		http.Error(w, "Failed to convert location", http.StatusInternalServerError)
+		return
+	}
+	currentTime := time.Now().In(location)
+
+	date := currentTime.Format("2006-01-02")
+
+	_, err = tx.Exec(`INSERT 
+	INTO TR_MYPAY (Id, UserId, Tgl, Nominal, KategoriId) VALUES ($1, $2, $3, $4, $5)`,
+		uuid.New(), transaction.UserID, date, transaction.Nominal, transaction.KategoriID)
 	if err != nil {
 		tx.Rollback()
 		http.Error(w, "Failed to record top-up transaction", http.StatusInternalServerError)
@@ -782,51 +1076,306 @@ func handleTopUp(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Top-up successful"})
 }
 
+func handleWithdraw(w http.ResponseWriter, r *http.Request) {
+	// var request MyPayKategori
+	if r.Method != http.MethodPost {
+		response := &MyPayWithdrawalResponse{
+			Status:  false,
+			Message: "Invalid Method",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	var transaction MyPayWithdrawalRequest
+	err := json.NewDecoder(r.Body).Decode(&transaction)
+	if err != nil {
+		response := &MyPayWithdrawalResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		response := &MyPayWithdrawalResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	var saldo float64
+	err = db.QueryRow(`SELECT SaldoMyPay FROM "user" WHERE Id = $1`, transaction.UserID).Scan(&saldo)
+	if err == sql.ErrNoRows {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: "Invalid Credential",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if saldo < transaction.Nominal {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: "Saldo kurang dari nominal penarikan",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	_, err = tx.Exec("UPDATE \"user\" SET SaldoMyPay = SaldoMyPay - $1 WHERE Id = $2", transaction.Nominal, transaction.UserID)
+	if err != nil {
+		tx.Rollback()
+		http.Error(w, "Failed to top-up", http.StatusInternalServerError)
+		return
+	}
+
+	location, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		response := &MyPayWithdrawalResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	currentTime := time.Now().In(location)
+
+	date := currentTime.Format("2006-01-02")
+
+	_, err = tx.Exec(`INSERT 
+	INTO TR_MYPAY (Id, UserId, Tgl, Nominal, KategoriId) VALUES ($1, $2, $3, $4, $5)`,
+		uuid.New(), transaction.UserID, date, transaction.Nominal, transaction.KategoriID)
+	if err != nil {
+		response := &MyPayWithdrawalResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	if err = tx.Commit(); err != nil {
+		response := &MyPayWithdrawalResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	response := &MyPayWithdrawalResponse{
+		Status:  true,
+		Message: "Succes withdraw money",
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+func handleTransfer(w http.ResponseWriter, r *http.Request) {
+	// var request MyPayKategori
+	if r.Method != http.MethodPatch {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var transaction MyPayTransactionTransferRequest
+	err := json.NewDecoder(r.Body).Decode(&transaction)
+	if err != nil {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: "Failed to start transaction",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	var saldo float64
+	err = db.QueryRow(`SELECT SaldoMyPay FROM "user" WHERE Id = $1`, transaction.UserID).Scan(&saldo)
+	if err == sql.ErrNoRows {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: "Invalid Credential",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if saldo < transaction.Nominal {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: "Saldo kurang dari nominal transfer",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	var idUser string
+	err = db.QueryRow(`UPDATE "user" SET SaldoMyPay = SaldoMyPay - $1 WHERE Id = $2 Returning Id`, transaction.Nominal, transaction.UserID).Scan(&idUser)
+	if err == sql.ErrNoRows {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: "Invalid Credential",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	err = db.QueryRow(`UPDATE "user" SET SaldoMyPay = SaldoMyPay + $1 WHERE NoHP = $2 Returning Id`, transaction.Nominal, transaction.ToUserID).Scan(&idUser)
+	if err == sql.ErrNoRows {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: "Tidak ada user dengan NoHP " + transaction.ToUserID,
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	location, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	currentTime := time.Now().In(location)
+
+	date := currentTime.Format("2006-01-02")
+
+	_, err = tx.Exec(`INSERT 
+	INTO TR_MYPAY (Id, UserId, Tgl, Nominal, KategoriId) VALUES ($1, $2, $3, $4, $5)`,
+		uuid.New(), transaction.UserID, date, transaction.Nominal, transaction.KategoriID)
+	if err != nil {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: err.Error() + " err",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	if err = tx.Commit(); err != nil {
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	response := &MyPayTransactionTransferResponse{
+		Status:  true,
+		Message: "Succes updating data",
+	}
+	json.NewEncoder(w).Encode(response)
+}
+
 // GetCategoryIdByName fetches the category UUID based on the category name
 func GetCategoryIdByName(w http.ResponseWriter, r *http.Request) {
-    if r.Method != http.MethodPost {
-        http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-        return
-    }
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
 
-    // Parse the request body into the MyPayKategori struct
-    var requestBody MyPayKategori
-    decoder := json.NewDecoder(r.Body)
-    if err := decoder.Decode(&requestBody); err != nil {
-        http.Error(w, "Failed to parse request body", http.StatusBadRequest)
-        return
-    }
+	// Parse the request body into the MyPayKategori struct
+	var requestBody MyPayKategori
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&requestBody); err != nil {
+		http.Error(w, "Failed to parse request body", http.StatusBadRequest)
+		return
+	}
 
-    // Validate the category name
-    if requestBody.NamaKategori == "" {
-        http.Error(w, "Category name is required", http.StatusBadRequest)
-        return
-    }
+	// Validate the category name
+	if requestBody.NamaKategori == "" {
+		http.Error(w, "Category name is required", http.StatusBadRequest)
+		return
+	}
 
-    // Query to get the category UUID based on the category name
-    var kategoriId uuid.UUID
-    err := db.QueryRow(`
+	// Query to get the category UUID based on the category name
+	var kategoriId uuid.UUID
+	err := db.QueryRow(`
         SELECT Id
         FROM KATEGORI_TR_MYPAY
         WHERE Nama = $1`, requestBody.NamaKategori).Scan(&kategoriId)
-    if err != nil {
-        if err == sql.ErrNoRows {
-            http.Error(w, "Category not found", http.StatusNotFound)
-        } else {
-            http.Error(w, "Failed to fetch category UUID", http.StatusInternalServerError)
-        }
-        return
-    }
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Category not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Failed to fetch category UUID", http.StatusInternalServerError)
+		}
+		return
+	}
 
-    // Respond with the category UUID
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(map[string]string{
-        "kategoriId": kategoriId.String(),
-    })
+	// Respond with the category UUID
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"kategoriId": kategoriId.String(),
+	})
 }
 
 func getPesananJasa(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
+	if r.Method != http.MethodPatch {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
@@ -842,17 +1391,22 @@ func getPesananJasa(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := db.Query(`
 		SELECT 
-			k.NamaKategori, 
-			tpj.TotalBiaya 
-		FROM 
-			TR_PEMESANAN_JASA tpj
+			TJ.Id,
+			SJ.NamaSubkategori,
+			TJ.Sesi,
+			TJ.TotalBiaya,
+			COUNT(TS.IdTrPemesanan) AS Status
+			FROM 
+			TR_PEMESANAN_JASA TJ
 		JOIN 
-			KATEGORI_JASA k ON k.Id = tpj.IdKategoriJasa
+			SUBKATEGORI_JASA SJ ON SJ.Id = TJ.IdKategoriJasa
 		JOIN 
-			TR_PEMESANAN_STATUS tps ON tpj.Id = tps.IdTrPemesanan
+			TR_PEMESANAN_STATUS TS ON TJ.Id = TS.IdTrPemesanan
 		WHERE 
-			tps.Keterangan = 'Menunggu Pembayaran'
-			AND tpj.IdPelanggan = $1`, body.User)
+			TJ.IdPelanggan = $1
+		GROUP BY 
+			TJ.Id, SJ.NamaSubkategori, TJ.Sesi, TJ.TotalBiaya
+			`, body.User)
 	if err != nil {
 		response.Status = false
 		response.Message = "Error executing query: " + err.Error()
@@ -864,14 +1418,17 @@ func getPesananJasa(w http.ResponseWriter, r *http.Request) {
 	var pesanan []PesananJasa
 	for rows.Next() {
 		var pesananItem PesananJasa
-		err := rows.Scan(&pesananItem.NamaJasa, &pesananItem.TotalBiaya)
+		var status int
+		err := rows.Scan(&pesananItem.Id, &pesananItem.NamaJasa, &pesananItem.Sesi, &pesananItem.TotalBiaya, &status)
 		if err != nil {
 			response.Status = false
 			response.Message = "Error scanning row: " + err.Error()
 			json.NewEncoder(w).Encode(response)
 			return
 		}
-		pesanan = append(pesanan, pesananItem)
+		if status == 1 {
+			pesanan = append(pesanan, pesananItem)
+		}
 	}
 
 	// Pastikan response selalu mengembalikan pesanan, meskipun kosong
@@ -927,7 +1484,6 @@ func GetStatusIdByName(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-
 func ProcessPayment(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
@@ -941,18 +1497,23 @@ func ProcessPayment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		response := &ProcessPaymentResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	// Validate UUID format for UserId and ServiceId
 	if _, err := uuid.Parse(requestBody.UserId); err != nil {
-		http.Error(w, "Invalid UserId format", http.StatusBadRequest)
-		return
-	}
+		response := &ProcessPaymentResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
 
-	if _, err := uuid.Parse(requestBody.ServiceId); err != nil {
-		http.Error(w, "Invalid ServiceId format", http.StatusBadRequest)
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
@@ -960,7 +1521,12 @@ func ProcessPayment(w http.ResponseWriter, r *http.Request) {
 	var servicePrice float64
 	err := db.QueryRow(`SELECT TotalBiaya FROM TR_PEMESANAN_JASA WHERE Id = $1`, requestBody.ServiceId).Scan(&servicePrice)
 	if err != nil {
-		http.Error(w, "Failed to fetch service price", http.StatusInternalServerError)
+		response := &ProcessPaymentResponse{
+			Status:  false,
+			Message: "Failed to fetch service price",
+		}
+
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
@@ -968,63 +1534,1058 @@ func ProcessPayment(w http.ResponseWriter, r *http.Request) {
 	var userBalance float64
 	err = db.QueryRow(`SELECT SaldoMyPay FROM "user" WHERE Id = $1`, requestBody.UserId).Scan(&userBalance)
 	if err != nil {
-		http.Error(w, "Failed to fetch user balance", http.StatusInternalServerError)
+		response := &ProcessPaymentResponse{
+			Status:  false,
+			Message: "Failed to fetch user balance",
+		}
+
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	// Validate balance
 	if userBalance < servicePrice {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
-			"message": "Saldo tidak mencukupi untuk melakukan pembayaran.",
-		})
+		response := &ProcessPaymentResponse{
+			Status:  false,
+			Message: "Saldo tidak mencukupi untuk melakukan pembayaran",
+		}
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	// Update user balance
 	_, err = db.Exec(`UPDATE "user" SET SaldoMyPay = SaldoMyPay - $1 WHERE Id = $2`, servicePrice, requestBody.UserId)
 	if err != nil {
-		http.Error(w, "Failed to update user balance", http.StatusInternalServerError)
+		response := &ProcessPaymentResponse{
+			Status:  false,
+			Message: "Tidak berhasil mengupdate saldo",
+		}
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	// Fetch new status ID
-	var newStatusId uuid.UUID
+	var newStatusId string
 	err = db.QueryRow(`SELECT Id FROM STATUS_PESANAN WHERE Status = 'Mencari Pekerja Terdekat'`).Scan(&newStatusId)
 	if err != nil {
-		http.Error(w, "Failed to fetch new status ID", http.StatusInternalServerError)
+		response := &ProcessPaymentResponse{
+			Status:  false,
+			Message: "Gagal mendapatkan data",
+		}
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
-	// Update service status
-	_, err = db.Exec(`
-		UPDATE TR_PEMESANAN_JASA 
-		SET IdKategoriJasa = $1, IdDiskon = NULL, IdMetodeBayar = NULL 
-		WHERE Id = $2`, newStatusId, requestBody.ServiceId)
+	location, err := time.LoadLocation("Asia/Jakarta")
 	if err != nil {
-		http.Error(w, "Failed to update service status", http.StatusInternalServerError)
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
 		return
 	}
+	currentTime := time.Now().In(location)
 
+	date := currentTime.Format("2006-01-02")
+	// Update service status
+	db.QueryRow(`INSERT INTO TR_PEMESANAN_STATUS VALUES ($1, $2, $3)`, requestBody.ServiceId, newStatusId, date)
+	if err == sql.ErrNoRows {
+		response := &JobUpdateStatusResponse{
+			Status:  false,
+			Message: "Invalid Credential",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := &JobUpdateStatusResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
 	// Insert into TR_MYPAY
-	var categoryId uuid.UUID
+	var categoryId string
 	err = db.QueryRow(`SELECT Id FROM KATEGORI_TR_MYPAY WHERE Nama = 'membayar transaksi jasa'`).Scan(&categoryId)
 	if err != nil {
-		http.Error(w, "Failed to fetch category ID", http.StatusInternalServerError)
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
-	_, err = db.Exec(`INSERT INTO TR_MYPAY (Id, UserId, Tgl, Nominal, KategoriId) VALUES (uuid_generate_v4(), $1, CURRENT_DATE, $2, $3)`,
-		requestBody.UserId, servicePrice, categoryId)
+	_, err = db.Exec(`INSERT 
+	INTO TR_MYPAY (Id, UserId, Tgl, Nominal, KategoriId) VALUES ($1, $2, $3, $4, $5)`,
+		uuid.New(), requestBody.UserId, date, servicePrice, categoryId)
+	// _, err = db.Exec(`INSERT INTO TR_MYPAY (Id, UserId, Tgl, Nominal, KategoriId) VALUES (uuid_generate_v4(), $1, CURRENT_DATE, $2, $3)`,
+	// 	requestBody.UserId, servicePrice, categoryId)
 	if err != nil {
-		http.Error(w, "Failed to insert transaction", http.StatusInternalServerError)
+		response := &MyPayTransactionTransferResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	// Respond with success
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Payment successful",
-	})
+	response := &MyPayTransactionTransferResponse{
+		Status:  true,
+		Message: "Pembayaran Sukes",
+	}
+
+	json.NewEncoder(w).Encode(response)
 }
 
+func getAvailableJobs(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var body GetJobsRequest
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	var response GetJobsResponse
+	rows, err := db.Query(`SELECT tj.Id 
+	FROM tr_pemesanan_jasa AS tj 
+	LEFT JOIN tr_pemesanan_status as ts ON tj.Id = ts.IdTrPemesanan 
+	LEFT JOIN status_pesanan as sp ON sp.Id = ts.IdStatus 
+	LEFT JOIN SUBKATEGORI_JASA as sj ON sj.Id = tj.IdKategoriJasa
+	LEFT JOIN PEKERJA_KATEGORI_JASA as pj ON pj.KategoriJasaId = sj.KategoriJasaId
+	WHERE 
+	sp.Status LIKE '%Terdekat%' AND 
+	pj.PekerjaId = $1
+	`, body.UserID)
+
+	var pesananList []JobsData
+	if err != nil {
+		response := &GetJobsResponse{
+			Status:  false,
+			Message: err.Error(),
+			Pesanan: nil,
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var pemesanan string
+		if err := rows.Scan(&pemesanan); err != nil {
+			log.Println("Error scanning row:", err)
+			return
+		}
+		var exist int
+		db.QueryRow(`SELECT 1 AS data 
+		FROM tr_pemesanan_status 
+		LEFT JOIN status_pesanan ON status_pesanan.Id = tr_pemesanan_status.IdStatus 
+		WHERE tr_pemesanan_status.IdTrPemesanan = $1 
+		AND status_pesanan.Status LIKE '%Berangkat%'
+		`, pemesanan).Scan(&exist)
+
+		var response_pesan JobsData
+		if exist != 1 {
+			db.QueryRow(`SELECT 
+			TJ.Id, 
+			SJ.NamaSubkategori, 
+			TJ.TglPemesanan, 
+			U.Nama,  
+			TJ.Sesi,
+			TJ.TotalBiaya,
+			KJ.NamaKategori
+			FROM TR_PEMESANAN_JASA AS TJ
+			LEFT JOIN SUBKATEGORI_JASA AS SJ ON TJ.IdKategoriJasa = SJ.Id
+			LEFT JOIN KATEGORI_JASA AS KJ ON KJ.Id = SJ.KategoriJasaId
+			LEFT JOIN "user" AS U ON U.Id = TJ.IdPelanggan
+			WHERE  
+			TJ.Id = $1
+			`, pemesanan).Scan(
+				&response_pesan.Id,
+				&response_pesan.NamaSubkategori,
+				&response_pesan.TanggalPesan,
+				&response_pesan.NamaPelanggan,
+				&response_pesan.Sesi,
+				&response_pesan.Total,
+				&response_pesan.Kategori,
+			)
+
+			pesananList = append(pesananList, response_pesan)
+		}
+	}
+
+	response.Status = true
+	response.Message = "Berhasil mengambil data"
+	response.Pesanan = pesananList
+	json.NewEncoder(w).Encode(response)
+}
+
+func pickAJob(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var body PickJobRequest
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	var sesi int
+	err = db.QueryRow(`SELECT Sesi FROM TR_PEMESANAN_JASA WHERE Id = $1`, body.TRID).Scan(&sesi)
+	if err == sql.ErrNoRows {
+		response := &PickJobResponse{
+			Status:  false,
+			Message: "Invalid Credential",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := &PickJobResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	location, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		response := &PickJobResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	currentTime := time.Now().In(location)
+
+	date := currentTime.Format("2006-01-02")
+	time := currentTime.AddDate(0, 0, sesi).Format("2006-01-02 15:04:05")
+	time_status := currentTime.Format("2006-01-02 15:04:05")
+
+	var value string
+	err = db.QueryRow(`
+	UPDATE TR_PEMESANAN_JASA 
+	SET IdPekerja = $1, TglPekerjaan = $2, WaktuPekerjaan = $3 WHERE Id = $4 RETURNING Id`,
+		body.UserID, date, time, body.TRID).Scan(&value)
+
+	if err == sql.ErrNoRows {
+		response := &PickJobResponse{
+			Status:  false,
+			Message: "Invalid Credential",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := &PickJobResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// b8a64f3b-8c66-4e74-b8c4-d62d1b42d33b | Menunggu Pembayaran
+	// afac6469-f299-4a56-9eb5-5e7b9f84a6b6 | Mencari Pekerja Terdekat
+	// e88a03a5-7de1-4f5d-9d77-1d8149b0aab6 | Menunggu Pekerja Berangkat
+	// c5a47e2c-dba6-445e-b98e-29553f74e6a7 | Pekerja tiba di lokasi
+	// 2d79e2eb-64f5-4718-bb1e-c9d5e10b3274 | Pelayanan jasa sedang dilakukan
+	// a0f51f69-bcb5-45a7-9d55-09c2a15ae4bc | Pesanan selesai
+	// 56bb004e-0b0e-4cb8-982b-98eb4f5dc542 | Pesanan dibatal
+
+	err = db.QueryRow(`
+	INSERT INTO TR_PEMESANAN_STATUS VALUES ($1, $2, $3) RETURNING IdTrPemesanan`,
+		body.TRID, "e88a03a5-7de1-4f5d-9d77-1d8149b0aab6", time_status).Scan(&value)
+	if err == sql.ErrNoRows {
+		response := &PickJobResponse{
+			Status:  false,
+			Message: "Invalid Credential",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := &PickJobResponse{
+			Status:  false,
+			Message: err.Error() + "Here",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	response := &PickJobResponse{
+		Status:  true,
+		Message: "Succes",
+		Id:      value,
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+func seePekerjaJob(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var body PekerjaJobRequest
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	rows, err := db.Query(`SELECT Id FROM TR_PEMESANAN_JASA WHERE IdPekerja = $1`, body.UserID)
+
+	var pekerjaanList []JobsDataDemand
+	var response PekerjaJobResponse
+	if err != nil {
+		response := &PekerjaJobResponse{
+			Status:    false,
+			Message:   err.Error(),
+			Pekerjaan: nil,
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var pemesanan string
+		if err := rows.Scan(&pemesanan); err != nil {
+			log.Println("Error scanning row:", err)
+			return
+		}
+
+		var response_pesan JobsDataDemand
+		db.QueryRow(`SELECT 
+			TJ.Id, 
+			SJ.NamaSubkategori, 
+			TJ.TglPemesanan, 
+			U.Nama,  
+			TJ.Sesi,
+			TJ.TotalBiaya,
+			KJ.NamaKategori
+			FROM TR_PEMESANAN_JASA AS TJ
+			LEFT JOIN SUBKATEGORI_JASA AS SJ ON TJ.IdKategoriJasa = SJ.Id
+			LEFT JOIN KATEGORI_JASA AS KJ ON KJ.Id = SJ.KategoriJasaId
+			LEFT JOIN "user" AS U ON U.Id = TJ.IdPelanggan
+			WHERE  
+			TJ.Id = $1
+			`, pemesanan).Scan(
+			&response_pesan.Id,
+			&response_pesan.NamaSubkategori,
+			&response_pesan.TanggalPesan,
+			&response_pesan.NamaPelanggan,
+			&response_pesan.Sesi,
+			&response_pesan.Total,
+			&response_pesan.Kategori,
+		)
+
+		db.QueryRow(`
+		SELECT 
+			TJ.Id, 
+			SJ.NamaSubkategori, 
+			TJ.TglPemesanan, 
+			U.Nama AS NamaPelanggan,  
+			TJ.Sesi,
+			TJ.TotalBiaya,
+			KJ.NamaKategori,
+			COUNT(TS.IdTrPemesanan) AS JumlahStatus
+		FROM 
+		    TR_PEMESANAN_JASA AS TJ
+			LEFT JOIN SUBKATEGORI_JASA AS SJ ON TJ.IdKategoriJasa = SJ.Id
+			LEFT JOIN KATEGORI_JASA AS KJ ON KJ.Id = SJ.KategoriJasaId
+			LEFT JOIN "user" AS U ON U.Id = TJ.IdPelanggan
+			LEFT JOIN TR_PEMESANAN_STATUS AS TS ON TS.IdTrPemesanan = TJ.Id
+		WHERE  
+   			 TJ.Id = $1
+		GROUP BY 
+  		  	TJ.Id, SJ.NamaSubkategori, TJ.TglPemesanan, U.Nama, TJ.Sesi, TJ.TotalBiaya, KJ.NamaKategori;
+		`, pemesanan).Scan(
+			&response_pesan.Id,
+			&response_pesan.NamaSubkategori,
+			&response_pesan.TanggalPesan,
+			&response_pesan.NamaPelanggan,
+			&response_pesan.Sesi,
+			&response_pesan.Total,
+			&response_pesan.Kategori,
+			&response_pesan.Status,
+		)
+		if response_pesan.Status > 2 {
+			pekerjaanList = append(pekerjaanList, response_pesan)
+		}
+	}
+
+	response.Pekerjaan = pekerjaanList
+	response.Status = true
+	response.Message = "Berhasil Mendapatkan data"
+	json.NewEncoder(w).Encode(response)
+}
+
+func updatePekerjaJob(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var body JobUpdateStatusRequest
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	// b8a64f3b-8c66-4e74-b8c4-d62d1b42d33b | Menunggu Pembayaran
+	// afac6469-f299-4a56-9eb5-5e7b9f84a6b6 | Mencari Pekerja Terdekat
+	// e88a03a5-7de1-4f5d-9d77-1d8149b0aab6 | Menunggu Pekerja Berangkat
+	// c5a47e2c-dba6-445e-b98e-29553f74e6a7 | Pekerja tiba di lokasi
+	// 2d79e2eb-64f5-4718-bb1e-c9d5e10b3274 | Pelayanan jasa sedang dilakukan
+	// a0f51f69-bcb5-45a7-9d55-09c2a15ae4bc | Pesanan selesai
+	// 56bb004e-0b0e-4cb8-982b-98eb4f5dc542 | Pesanan dibatal
+
+	var status_pesanan = [6]string{
+		"b8a64f3b-8c66-4e74-b8c4-d62d1b42d33b",
+		"afac6469-f299-4a56-9eb5-5e7b9f84a6b6",
+		"e88a03a5-7de1-4f5d-9d77-1d8149b0aab6",
+		"c5a47e2c-dba6-445e-b98e-29553f74e6a7",
+		"2d79e2eb-64f5-4718-bb1e-c9d5e10b3274",
+		"a0f51f69-bcb5-45a7-9d55-09c2a15ae4bc",
+	}
+
+	var value int
+	var idPekerja string
+	err = db.QueryRow(`SELECT COUNT(IdTrPemesanan) AS Jumlah FROM TR_PEMESANAN_STATUS WHERE IdTrPemesanan = $1`, body.TRID).Scan(&value)
+	if err == sql.ErrNoRows {
+		response := &JobUpdateStatusResponse{
+			Status:  false,
+			Message: "Invalid Credential",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := &JobUpdateStatusResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	err = db.QueryRow(`SELECT IdPekerja FROM TR_PEMESANAN_JASA WHERE Id = $1`, body.TRID).Scan(&idPekerja)
+	if err == sql.ErrNoRows {
+		response := &JobUpdateStatusResponse{
+			Status:  false,
+			Message: "Invalid Credential",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := &JobUpdateStatusResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	location, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		response := &JobUpdateStatusResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	currentTime := time.Now().In(location)
+	time_status := currentTime.Format("2006-01-02 15:04:05")
+
+	if value == 6 {
+		response := &JobUpdateStatusResponse{
+			Status:  false,
+			Message: "Pekerja telah menyelesaikan pesanan",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if value == 5 {
+		err = db.QueryRow(`
+		UPDATE PEKERJA SET JmlPsnananSelesai = JmlPsnananSelesai + 1 WHERE Id = $1 Returning Id`,
+			idPekerja).Scan(&idPekerja)
+		if err == sql.ErrNoRows {
+			response := &JobUpdateStatusResponse{
+				Status:  false,
+				Message: "Invalid Credential",
+			}
+
+			json.NewEncoder(w).Encode(response)
+			return
+		} else if err != nil {
+			response := &JobUpdateStatusResponse{
+				Status:  false,
+				Message: err.Error() + "Here",
+			}
+
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+	}
+
+	var id_tr string
+	err = db.QueryRow(`
+	INSERT INTO TR_PEMESANAN_STATUS VALUES ($1, $2, $3) RETURNING IdTrPemesanan`,
+		body.TRID, status_pesanan[value], time_status).Scan(&id_tr)
+	if err == sql.ErrNoRows {
+		response := &JobUpdateStatusResponse{
+			Status:  false,
+			Message: "Invalid Credential",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := &JobUpdateStatusResponse{
+			Status:  false,
+			Message: err.Error() + "Here",
+		}
+
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	response := &JobUpdateStatusResponse{
+		Status:  true,
+		Message: "Berhasil Memperbaharui data",
+		Id:      id_tr + " " + status_pesanan[value],
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+type getKategoriFromSubRequest struct {
+	Id string `json:"id"`
+}
+
+type getKategoriFromSubResponse struct {
+	Kategori    []string   `json:"kategori"`
+	SubKategori [][]string `json:"subkategori"`
+	Status      bool       `json:"status"`
+	Message     string     `json:"message"`
+}
+
+func getKategoriFromSub(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var body getKategoriFromSubRequest
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	rows, err := db.Query(`SELECT 
+	Id, NamaKategori FROM KATEGORI_JASA 
+	LEFT JOIN PEKERJA_KATEGORI_JASA 
+	ON Id = KategoriJasaId WHERE PekerjaId = $1`, body.Id)
+
+	var kategori_list []string
+	var sub_kategori_list [][]string
+	if err != nil {
+		response := &getKategoriFromSubResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id_kategori string
+		var namaKategori string
+		var sub_kategoris []string
+		if err := rows.Scan(&id_kategori, &namaKategori); err != nil {
+			response := &getKategoriFromSubResponse{
+				Status:  false,
+				Message: err.Error(),
+			}
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+		kategori_list = append(kategori_list, namaKategori)
+
+		rows2, err := db.Query(`SELECT
+		NamaSubkategori FROM SUBKATEGORI_JASA
+		WHERE KategoriJasaId = $1
+		`, id_kategori)
+
+		if err != nil {
+			response := &getKategoriFromSubResponse{
+				Status:  false,
+				Message: err.Error(),
+			}
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+		defer rows2.Close()
+
+		for rows2.Next() {
+			var sub_kategori string
+			if err := rows2.Scan(&sub_kategori); err != nil {
+				response := &getKategoriFromSubResponse{
+					Status:  false,
+					Message: err.Error(),
+				}
+				json.NewEncoder(w).Encode(response)
+				return
+			}
+			sub_kategoris = append(sub_kategoris, sub_kategori)
+		}
+
+		sub_kategori_list = append(sub_kategori_list, sub_kategoris)
+	}
+
+	response := &getKategoriFromSubResponse{
+		Kategori:    kategori_list,
+		SubKategori: sub_kategori_list,
+		Status:      true,
+		Message:     "Berhasil Mendapatkan data",
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// ------------------------------------------------------
+// Bagian Testimoni (Dari kode yang ingin digabungkan)
+// ------------------------------------------------------
+func IsPesananSelesai(db *sql.DB, pemesananID string) (bool, error) {
+	// Query untuk memeriksa apakah status pemesanan adalah "Pesanan selesai"
+	query := `
+        SELECT COUNT(*) 
+        FROM tr_pemesanan_status tps
+        JOIN status_pesanan sp ON tps.idstatus = sp.id
+        WHERE tps.idtrpemesanan = $1 AND sp.status = 'Pesanan selesai'
+    `
+	var count int
+	err := db.QueryRow(query, pemesananID).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("gagal memeriksa status pemesanan: %v", err)
+	}
+	return count > 0, nil
+}
+
+func IsPelangganPemesan(db *sql.DB, userID, pemesananID string) (bool, error) {
+	query := `
+        SELECT COUNT(*)
+        FROM tr_pemesanan_jasa
+        WHERE id = $1 AND idpelanggan = $2
+    `
+	var count int
+	err := db.QueryRow(query, pemesananID, userID).Scan(&count)
+	if err != nil {
+		log.Printf("Error in IsPelangganPemesan: %v", err)
+		return false, err
+	}
+	log.Printf("Validation result: userID=%s, pemesananID=%s, count=%d", userID, pemesananID, count)
+	return count > 0, nil
+}
+
+func CreateTestimoni(db *sql.DB, userID string, pemesananID string, teks string, rating int) error {
+	// Validasi bahwa pengguna adalah pelanggan yang memesan jasa
+	isPemesan, err := IsPelangganPemesan(db, userID, pemesananID)
+	if err != nil {
+		return fmt.Errorf("gagal memvalidasi pemesanan: %v", err)
+	}
+	if !isPemesan {
+		return fmt.Errorf("anda bukan pelanggan yang memesan jasa ini")
+	}
+
+	// Validasi bahwa pemesanan telah selesai
+	selesai, err := IsPesananSelesai(db, pemesananID)
+	if err != nil {
+		return fmt.Errorf("gagal memvalidasi status pemesanan: %v", err)
+	}
+	if !selesai {
+		return fmt.Errorf("pesanan belum selesai, tidak dapat memberikan testimoni")
+	}
+
+	// Pastikan rating valid
+	if rating < 0 {
+		return fmt.Errorf("rating tidak boleh kurang dari 0")
+	}
+
+	// Format tanggal saat ini
+	tgl := time.Now().Format("2006-01-02")
+
+	// Query untuk memasukkan testimoni
+	query := `
+        INSERT INTO testimoni (idtrpemesanan, tgl, teks, rating)
+        VALUES ($1, $2, $3, $4)
+    `
+	_, err = db.Exec(query, pemesananID, tgl, teks, rating)
+	if err != nil {
+		return fmt.Errorf("gagal menyimpan testimoni: %v", err)
+	}
+
+	return nil
+}
+
+func GetTestimoniBySubkategori(db *sql.DB, subkategoriID string) ([]Testimoni, error) {
+	// Query untuk mendapatkan testimoni berdasarkan ID subkategori
+	query := `
+        SELECT t.idtrpemesanan, t.tgl, t.teks, t.rating
+        FROM testimoni t
+        JOIN tr_pemesanan_jasa pj ON t.idtrpemesanan = pj.id
+        WHERE pj.idkategorijasa = $1
+    `
+	rows, err := db.Query(query, subkategoriID)
+	if err != nil {
+		return nil, fmt.Errorf("gagal menjalankan query: %v", err)
+	}
+	defer rows.Close()
+
+	var result []Testimoni
+	for rows.Next() {
+		var t Testimoni
+		err := rows.Scan(&t.IdTrPemesanan, &t.Tgl, &t.Teks, &t.Rating)
+		if err != nil {
+			return nil, fmt.Errorf("gagal membaca hasil query: %v", err)
+		}
+		result = append(result, t)
+	}
+
+	return result, nil
+}
+
+func DeleteTestimoni(db *sql.DB, userID, pemesananID, tgl string) error {
+	// Validasi apakah user adalah pelanggan yang memesan jasa
+	isPemesan, err := IsPelangganPemesan(db, userID, pemesananID)
+	if err != nil {
+		return fmt.Errorf("gagal memvalidasi pelanggan: %v", err)
+	}
+	if !isPemesan {
+		return fmt.Errorf("anda bukan pelanggan yang memesan jasa ini, tidak dapat menghapus testimoni")
+	}
+
+	// Query untuk menghapus testimoni berdasarkan ID pemesanan dan tanggal
+	query := `
+        DELETE FROM testimoni
+        WHERE idtrpemesanan = $1 AND tgl = $2
+    `
+	_, err = db.Exec(query, pemesananID, tgl)
+	if err != nil {
+		return fmt.Errorf("gagal menghapus testimoni: %v", err)
+	}
+
+	return nil
+}
+
+// Handler create testimoni
+func createTestimoniHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	type createTestimoniReq struct {
+		UserID      string `json:"userId"`
+		PemesananID string `json:"pemesananId"`
+		Teks        string `json:"teks"`
+		Rating      int    `json:"rating"`
+	}
+
+	var req createTestimoniReq
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		log.Printf("Error decoding request body: %v", err)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	log.Printf("Received request: %+v", req)
+
+	err = CreateTestimoni(db, req.UserID, req.PemesananID, req.Teks, req.Rating)
+	if err != nil {
+		log.Printf("Error in CreateTestimoni: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Write([]byte("Testimoni berhasil ditambahkan"))
+}
+
+func getTestimoniHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+	subkategoriID := r.URL.Query().Get("subkategori_id")
+	if subkategoriID == "" {
+		http.Error(w, "subkategori_id is required", http.StatusBadRequest)
+		return
+	}
+
+	testimonies, err := GetTestimoniBySubkategori(db, subkategoriID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(testimonies)
+}
+
+func deleteTestimoniHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete && r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	type deleteTestimoniReq struct {
+		UserID      string `json:"userId"`
+		PemesananID string `json:"pemesananId"`
+		Tgl         string `json:"tgl"`
+	}
+
+	var req deleteTestimoniReq
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err = DeleteTestimoni(db, req.UserID, req.PemesananID, req.Tgl)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Write([]byte("Testimoni berhasil dihapus"))
+}
+
+// ------------------------------------------------------
+// Bagian Diskon & Voucher (dari kode yang ingin digabungkan)
+// ------------------------------------------------------
+func getDiskonHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Query untuk tabel voucher
+	voucherQuery := `
+    SELECT d.kode, d.potongan, d.mintrpemesanan, v.jmlhariberlaku, v.kuotapenggunaan, v.harga
+    FROM voucher v
+    JOIN diskon d ON v.kode = d.kode
+    `
+
+	rows, err := db.Query(voucherQuery)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var voucherList []VoucherItem
+	for rows.Next() {
+		var v VoucherItem
+		err := rows.Scan(&v.Kode, &v.Potongan, &v.MinTrPemesanan, &v.JmlHariBerlaku, &v.KuotaPenggunaan, &v.Harga)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		voucherList = append(voucherList, v)
+	}
+
+	// Query untuk tabel promo
+	promoQuery := `
+    SELECT d.kode, d.potongan, d.mintrpemesanan, p.tglakhirberlaku
+    FROM promo p
+    JOIN diskon d ON p.kode = d.kode
+    `
+	promoRows, err := db.Query(promoQuery)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer promoRows.Close()
+
+	var promoList []PromoItem
+	for promoRows.Next() {
+		var p PromoItem
+		err := promoRows.Scan(&p.Kode, &p.Potongan, &p.MinTrPemesanan, &p.TglAkhirBerlaku)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		promoList = append(promoList, p)
+	}
+
+	// Format response
+	response := GetDiskonResponse{
+		Status:  true,
+		Message: "Berhasil mendapatkan daftar voucher dan promo",
+		Voucher: voucherList,
+		Promo:   promoList,
+	}
+
+	// Kirim response sebagai JSON
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func buyVoucherHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var body BuyVoucherRequest
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	var potongan float64
+	var minTr int
+	var jmlHari int
+	var kuota int
+	var harga float64
+	err = db.QueryRow(`
+        SELECT d.potongan, d.mintrpemesanan, v.jmlhariberlaku, v.kuotapenggunaan, v.harga
+        FROM voucher v
+        JOIN diskon d ON v.kode = d.kode
+        WHERE v.kode = $1
+    `, body.VoucherCode).Scan(&potongan, &minTr, &jmlHari, &kuota, &harga)
+
+	if err == sql.ErrNoRows {
+		response := BuyVoucherResponse{
+			Status:  false,
+			Message: "Voucher tidak ditemukan",
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := BuyVoucherResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	myPayId := "e2ae7f92-eefb-47a7-aa1b-c7d157ab94d7" // UUID metode pembayaran MyPay
+	tglAwal := time.Now()
+	tglAkhir := tglAwal.AddDate(0, 0, jmlHari)
+
+	// Jika metode pembayaran bukan MyPay
+	if body.MetodeBayarId != myPayId {
+		_, err := db.Exec(`
+            INSERT INTO tr_pembelian_voucher (id, tglawal, tglakhir, telahdigunakan, idpelanggan, idvoucher, idmetodebayar)
+            VALUES ($1, $2, $3, 0, $4, $5, $6)`,
+			uuid.New(), tglAwal, tglAkhir, body.UserID, body.VoucherCode, body.MetodeBayarId)
+		if err != nil {
+			response := BuyVoucherResponse{
+				Status:  false,
+				Message: err.Error(),
+			}
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		response := BuyVoucherResponse{
+			Status:  true,
+			Message: "Voucher berhasil dibeli tanpa MyPay",
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	// Jika metode pembayaran menggunakan MyPay
+	var saldo float64
+	err = db.QueryRow(`SELECT saldomypay FROM "user" WHERE id = $1`, body.UserID).Scan(&saldo)
+	if err == sql.ErrNoRows {
+		response := BuyVoucherResponse{
+			Status:  false,
+			Message: "User tidak ditemukan",
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	} else if err != nil {
+		response := BuyVoucherResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	if saldo < harga {
+		response := BuyVoucherResponse{
+			Status:  false,
+			Message: "Saldo MyPay tidak cukup",
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	newSaldo := saldo - harga
+	_, err = db.Exec(`UPDATE "user" SET saldomypay = $1 WHERE id = $2`, newSaldo, body.UserID)
+	if err != nil {
+		response := BuyVoucherResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	_, err = db.Exec(`
+        INSERT INTO tr_pembelian_voucher (id, tglawal, tglakhir, telahdigunakan, idpelanggan, idvoucher, idmetodebayar)
+        VALUES ($1, $2, $3, 0, $4, $5, $6)`,
+		uuid.New(), tglAwal, tglAkhir, body.UserID, body.VoucherCode, body.MetodeBayarId)
+
+	if err != nil {
+		response := BuyVoucherResponse{
+			Status:  false,
+			Message: err.Error(),
+		}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	response := BuyVoucherResponse{
+		Status:  true,
+		Message: "Voucher berhasil dibeli dengan MyPay",
+	}
+	json.NewEncoder(w).Encode(response)
+}
