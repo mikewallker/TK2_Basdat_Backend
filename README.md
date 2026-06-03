@@ -1,34 +1,16 @@
 # TK2 Basdat Backend
 
-This is the backend I built for a service‑marketplace application (home‑service booking). It handles user onboarding, service discovery, ordering, payments, worker job flow, and feedback — a complete, database‑driven system I can confidently explain end‑to‑end.
+This is the backend I built for a service‑marketplace application (home‑service booking). I wrote it in Go and focused on a clean, straightforward backend that I can explain clearly.
 
-## Why this project stands out
-- **End-to-end marketplace flow**: I covered authentication, service browsing, ordering, payments, and reviews in one backend.
-- **Rich business logic**: I implemented a wallet (MyPay) with top‑up/transfer/withdrawal, voucher & promo discounts, and the worker job lifecycle.
-- **Relational data focus**: I modeled everything in PostgreSQL with UUIDs and transactional operations across users, orders, and payments.
-- **Production-style API surface**: I exposed clear HTTP endpoints for each domain (users, jobs, payments, testimonials).
-
-## Key Features
-- **Auth & user management**: register, login, and profile retrieval/updates.
-- **Service catalog**: homepage data, subkategori, and ordering flow.
-- **Jobs for workers**: available jobs, pick job, update job status.
-- **MyPay wallet**: balance, history, top‑up, transfer, withdrawal, and payment processing.
-- **Promotions**: voucher & promo listing and purchase.
-- **Testimonials**: create, list, delete feedback.
-
-## Tech Stack
+## Tech Stack & Approach
 - **Go 1.21** using `net/http`
-- **PostgreSQL** via `lib/pq`
+- **PostgreSQL** with **raw SQL** (no ORM)
+- **database/sql** + `lib/pq` for queries
 - **UUID** identifiers via `google/uuid`
 
-## API Highlights
-These are some of the main endpoints I expose (see `main.go` for full list):
-- `/login`, `/register`, `/getUser`, `/updateUser`
-- `/homepage`, `/subkategori`, `/pesan`
-- `/mypay/balance`, `/mypay/history`, `/mypay/topup`, `/mypay/transfer`, `/mypay/withdrawal`
-- `/jobs/available`, `/jobs/get-job`, `/jobs/job-pekerja-update`
-- `/getDiskon`, `/buyVoucher`
-- `/createTestimoni`, `/getTestimoni`, `/deleteTestimoni`
+What I want you to notice:
+- I write the SQL myself to control the schema and queries.
+- I keep the API simple and clear, without heavy frameworks.
 
 ## Setup & Run
 1. **Install Go 1.21+**
@@ -45,4 +27,4 @@ These are some of the main endpoints I expose (see `main.go` for full list):
 5. Server runs at **http://localhost:8080**
 
 ## Notes for Recruiters
-If we walk through this together, I can explain how each feature maps to real business needs: multi‑role users, transactional payments, and marketplace operations. This project is my strongest demonstration of practical backend engineering with relational data, APIs, and business logic.
+I can walk through the architecture, the database design, and how I wire up endpoints to SQL. The main point is that I understand the backend deeply because I built it without hiding the database behind an ORM.
