@@ -1,18 +1,18 @@
 # TK2 Basdat Backend
 
-Backend service for a service-marketplace application (home-service booking). It powers user onboarding, service discovery, ordering, payments, worker job flow, and feedback — designed to showcase strong database-driven features for recruiters.
+This is the backend I built for a service‑marketplace application (home‑service booking). It handles user onboarding, service discovery, ordering, payments, worker job flow, and feedback — a complete, database‑driven system I can confidently explain end‑to‑end.
 
 ## Why this project stands out
-- **End-to-end marketplace flow**: authentication, service browsing, ordering, payments, and reviews in one backend.
-- **Rich business logic**: wallet (MyPay) with top-up/transfer/withdrawal, voucher & promo discounts, and worker job lifecycle.
-- **Relational data focus**: PostgreSQL with UUID identifiers and transactional operations across users, orders, and payments.
-- **Production-style API surface**: clear HTTP endpoints for each domain (users, jobs, payments, testimonials).
+- **End-to-end marketplace flow**: I covered authentication, service browsing, ordering, payments, and reviews in one backend.
+- **Rich business logic**: I implemented a wallet (MyPay) with top‑up/transfer/withdrawal, voucher & promo discounts, and the worker job lifecycle.
+- **Relational data focus**: I modeled everything in PostgreSQL with UUIDs and transactional operations across users, orders, and payments.
+- **Production-style API surface**: I exposed clear HTTP endpoints for each domain (users, jobs, payments, testimonials).
 
 ## Key Features
-- **Auth & user management**: register, login, get/update user profile.
+- **Auth & user management**: register, login, and profile retrieval/updates.
 - **Service catalog**: homepage data, subkategori, and ordering flow.
 - **Jobs for workers**: available jobs, pick job, update job status.
-- **MyPay wallet**: balance, history, top-up, transfer, withdrawal, and payment processing.
+- **MyPay wallet**: balance, history, top‑up, transfer, withdrawal, and payment processing.
 - **Promotions**: voucher & promo listing and purchase.
 - **Testimonials**: create, list, delete feedback.
 
@@ -22,7 +22,7 @@ Backend service for a service-marketplace application (home-service booking). It
 - **UUID** identifiers via `google/uuid`
 
 ## API Highlights
-Some of the main endpoints (see `main.go` for full list):
+These are some of the main endpoints I expose (see `main.go` for full list):
 - `/login`, `/register`, `/getUser`, `/updateUser`
 - `/homepage`, `/subkategori`, `/pesan`
 - `/mypay/balance`, `/mypay/history`, `/mypay/topup`, `/mypay/transfer`, `/mypay/withdrawal`
@@ -45,4 +45,4 @@ Some of the main endpoints (see `main.go` for full list):
 5. Server runs at **http://localhost:8080**
 
 ## Notes for Recruiters
-This project demonstrates building a real-world backend with complex data flows: multi-role users, transactional payments, and marketplace operations. It’s a solid showcase of practical backend engineering with relational data, APIs, and business logic.
+If we walk through this together, I can explain how each feature maps to real business needs: multi‑role users, transactional payments, and marketplace operations. This project is my strongest demonstration of practical backend engineering with relational data, APIs, and business logic.
