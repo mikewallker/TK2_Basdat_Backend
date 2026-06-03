@@ -1,6 +1,6 @@
 # TK2 Basdat Backend
 
-This is the backend I built for a service‑marketplace application (home‑service booking). It is a single Go service that uses raw SQL with PostgreSQL (no ORM).
+Backend for a service‑marketplace application (home‑service booking). It is a single Go service that uses raw SQL with PostgreSQL (no ORM).
 
 ## Tech Stack
 - **Go 1.21** using `net/http`
